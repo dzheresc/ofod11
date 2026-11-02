@@ -453,6 +453,142 @@ def _evaluate_m5(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _inputs(lib: types.ModuleType, i: dict[str, Any]) -> Any:
+    return lib.greeks.OptionInputs(
+        spot=i["spot"],
+        rate=i["rate"],
+        yield_=i["yield"],
+        volatility=i["volatility"],
+        maturity=i["t"],
+    )
+
+
+def _exposure(lib: types.ModuleType, j: list[float]) -> Any:
+    return lib.greeks.Exposure(delta=j[0], gamma=j[1], vega=j[2])
+
+
+def _evaluate_m6(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 16, 19 and 20; returns None for other kinds."""
+    p, g = lib.pricers, lib.greeks
+    if kind in ("bsm_greek", "bump_greek"):
+        otype, strike = _otype(lib, i["type"]), i["strike"]
+        inputs = _inputs(lib, i)
+        if kind == "bsm_greek":
+            result = g.bsm_greeks(otype, strike, inputs)
+        else:
+
+            def pricer(x: Any) -> float:
+                return float(
+                    p.bsm_price(
+                        otype,
+                        x.spot,
+                        strike,
+                        x.rate,
+                        x.yield_,
+                        x.volatility,
+                        x.maturity,
+                    )
+                )
+
+            result = g.bump_greeks(pricer, inputs)
+        return getattr(result, i["greek"])
+    if kind in ("gamma_neutral_hedge", "gamma_vega_neutral_hedge"):
+        portfolio = _exposure(lib, i["portfolio"])
+        if kind == "gamma_neutral_hedge":
+            h = g.gamma_neutral_hedge(portfolio, _exposure(lib, i["option1"]))
+        else:
+            h = g.gamma_vega_neutral_hedge(
+                portfolio,
+                _exposure(lib, i["option1"]),
+                _exposure(lib, i["option2"]),
+            )
+        return [h.option1, h.option2, h.underlying]
+    if kind == "delta_hedge_ratio":
+        experiment = g.HedgeExperiment(
+            spot=i["spot"],
+            strike=i["strike"],
+            rate=i["rate"],
+            drift=i["drift"],
+            volatility=i["volatility"],
+            maturity=i["maturity"],
+        )
+        return g.simulate_delta_hedge(
+            experiment, i["rebalances"], i["paths"], i["seed"]
+        ).ratio
+    if kind == "vol_surface":
+        j = i["surface"]
+        surface = lib.curves.VolSurface(
+            j["maturities"],
+            j["strikes"],
+            j["volatilities"],
+            getattr(lib.curves.VolInterpolation, i["interpolation"].upper()),
+        )
+        return surface.volatility(i["strike"], i["t"])
+    if kind == "implied_density_bsm":
+        k, h = i["strike"], i["spacing"]
+
+        def call(strike: float) -> float:
+            return float(
+                p.bsm_price(
+                    _otype(lib, "call"),
+                    i["spot"],
+                    strike,
+                    i["rate"],
+                    i["yield"],
+                    i["volatility"],
+                    i["t"],
+                )
+            )
+
+        return p.implied_density(
+            call(k - h), call(k), call(k + h), h, i["rate"], i["t"]
+        )
+    if kind == "strike_from_delta":
+        return p.strike_from_delta(
+            _otype(lib, i["type"]),
+            i["delta"],
+            i["spot"],
+            i["rate"],
+            i["yield"],
+            i["volatility"],
+            i["t"],
+        )
+    if kind == "minimum_variance_delta":
+        return p.minimum_variance_delta(
+            i["delta"], i["vega"], i["spot"], i["t"], i["a"], i["b"], i["c"]
+        )
+    if kind == "binary_jump_implied_vol":
+        otype = _otype(lib, i["type"])
+        price = p.binary_jump_price(
+            otype, i["strike"], i["rate"], i["t"], i["up"], i["down"], i["p_up"]
+        )
+        return p.implied_volatility(
+            otype, price, i["spot"], i["strike"], i["rate"], 0.0, i["t"]
+        )
+    if kind == "eso_tree":
+        t = i["terms"]
+        terms = p.EsoTerms(
+            strike=t["strike"],
+            maturity=t["maturity"],
+            vesting=t["vesting"],
+            exercise_multiple=t["exercise_multiple"],
+            exit_rate=t["exit_rate"],
+        )
+        return p.price_employee_stock_option(
+            terms, _market(lib, i["market"]), i["steps"]
+        )
+    if kind == "expected_life_value":
+        return p.expected_life_value(
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["yield"],
+            i["volatility"],
+            i["expected_life"],
+        )
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -531,7 +667,13 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         return p.forward_contract_value(
             f, i["delivery_price"], i["rate"], i["t"], lib.instruments.Side.LONG
         )
-    for extra in (_evaluate_m2, _evaluate_m3, _evaluate_m4, _evaluate_m5):
+    for extra in (
+        _evaluate_m2,
+        _evaluate_m3,
+        _evaluate_m4,
+        _evaluate_m5,
+        _evaluate_m6,
+    ):
         result = extra(lib, kind, i)
         if result is not None:
             return result

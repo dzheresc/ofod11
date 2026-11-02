@@ -4,6 +4,7 @@ from ofod import core
 from ofod import credit
 from ofod import curves
 from ofod import futures
+from ofod import greeks
 from ofod import instruments
 from ofod import math
 from ofod import models
@@ -20,6 +21,7 @@ __all__ = [
     "credit",
     "curves",
     "futures",
+    "greeks",
     "instruments",
     "math",
     "models",

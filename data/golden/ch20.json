@@ -1,0 +1,306 @@
+{
+  "chapter": 20,
+  "cases": [
+    {
+      "id": "surface_linear",
+      "ref": "Ch 20.6 Table 20.2: K = 1.05, 9 months interpolated between 13.4% and 14.0%",
+      "kind": "vol_surface",
+      "inputs": {
+        "surface": {
+          "maturities": [
+            0.08333333333333333,
+            0.25,
+            0.5,
+            1.0,
+            2.0,
+            5.0
+          ],
+          "strikes": [
+            0.9,
+            0.95,
+            1.0,
+            1.05,
+            1.1
+          ],
+          "volatilities": [
+            [
+              0.142,
+              0.13,
+              0.12,
+              0.131,
+              0.145
+            ],
+            [
+              0.14,
+              0.13,
+              0.12,
+              0.131,
+              0.142
+            ],
+            [
+              0.141,
+              0.133,
+              0.125,
+              0.134,
+              0.143
+            ],
+            [
+              0.147,
+              0.14,
+              0.135,
+              0.14,
+              0.148
+            ],
+            [
+              0.15,
+              0.144,
+              0.14,
+              0.145,
+              0.151
+            ],
+            [
+              0.148,
+              0.146,
+              0.144,
+              0.147,
+              0.15
+            ]
+          ]
+        },
+        "interpolation": "linear_vol",
+        "strike": 1.05,
+        "t": 0.75
+      },
+      "expected": 0.137,
+      "tol": 1e-09
+    },
+    {
+      "id": "surface_total_variance",
+      "ref": "Ch 20.6 Table 20.2, interpolated in total variance (computed, not in the book)",
+      "kind": "vol_surface",
+      "inputs": {
+        "surface": {
+          "maturities": [
+            0.08333333333333333,
+            0.25,
+            0.5,
+            1.0,
+            2.0,
+            5.0
+          ],
+          "strikes": [
+            0.9,
+            0.95,
+            1.0,
+            1.05,
+            1.1
+          ],
+          "volatilities": [
+            [
+              0.142,
+              0.13,
+              0.12,
+              0.131,
+              0.145
+            ],
+            [
+              0.14,
+              0.13,
+              0.12,
+              0.131,
+              0.142
+            ],
+            [
+              0.141,
+              0.133,
+              0.125,
+              0.134,
+              0.143
+            ],
+            [
+              0.147,
+              0.14,
+              0.135,
+              0.14,
+              0.148
+            ],
+            [
+              0.15,
+              0.144,
+              0.14,
+              0.145,
+              0.151
+            ],
+            [
+              0.148,
+              0.146,
+              0.144,
+              0.147,
+              0.15
+            ]
+          ]
+        },
+        "interpolation": "total_variance",
+        "strike": 1.05,
+        "t": 0.75
+      },
+      "expected": 0.138029,
+      "tol": 1e-05
+    },
+    {
+      "id": "surface_flat_extrapolation",
+      "ref": "Ch 20.6 Table 20.2: beyond the grid the surface is flat",
+      "kind": "vol_surface",
+      "inputs": {
+        "surface": {
+          "maturities": [
+            0.08333333333333333,
+            0.25,
+            0.5,
+            1.0,
+            2.0,
+            5.0
+          ],
+          "strikes": [
+            0.9,
+            0.95,
+            1.0,
+            1.05,
+            1.1
+          ],
+          "volatilities": [
+            [
+              0.142,
+              0.13,
+              0.12,
+              0.131,
+              0.145
+            ],
+            [
+              0.14,
+              0.13,
+              0.12,
+              0.131,
+              0.142
+            ],
+            [
+              0.141,
+              0.133,
+              0.125,
+              0.134,
+              0.143
+            ],
+            [
+              0.147,
+              0.14,
+              0.135,
+              0.14,
+              0.148
+            ],
+            [
+              0.15,
+              0.144,
+              0.14,
+              0.145,
+              0.151
+            ],
+            [
+              0.148,
+              0.146,
+              0.144,
+              0.147,
+              0.15
+            ]
+          ]
+        },
+        "interpolation": "linear_vol",
+        "strike": 1.2,
+        "t": 10.0
+      },
+      "expected": 0.15,
+      "tol": 1e-12
+    },
+    {
+      "id": "density_flat_smile",
+      "ref": "Ch 20 Appendix: Breeden-Litzenberger on a flat 30% smile recovers the lognormal density (S0 = K = 10, r = 3%, T = 0.25, delta = 0.1)",
+      "kind": "implied_density_bsm",
+      "inputs": {
+        "spot": 10.0,
+        "strike": 10.0,
+        "spacing": 0.1,
+        "rate": 0.03,
+        "yield": 0.0,
+        "volatility": 0.3,
+        "t": 0.25
+      },
+      "expected": 0.265878,
+      "tol": 0.0002
+    },
+    {
+      "id": "strike_from_delta",
+      "ref": "Ch 20.6 smile in delta space: 25-delta call strike (computed, not in the book)",
+      "kind": "strike_from_delta",
+      "inputs": {
+        "type": "call",
+        "delta": 0.25,
+        "spot": 1.0,
+        "rate": 0.02,
+        "yield": 0.01,
+        "volatility": 0.1,
+        "t": 0.5
+      },
+      "expected": 1.056451,
+      "tol": 1e-06
+    },
+    {
+      "id": "minimum_variance_delta",
+      "ref": "Ch 20.5 eq. for delta_MV with a = -0.25, b = 0.4, c = -0.4 (computed, not in the book)",
+      "kind": "minimum_variance_delta",
+      "inputs": {
+        "delta": 0.521605,
+        "vega": 12.10548,
+        "spot": 49.0,
+        "t": 0.38461538461538464,
+        "a": -0.25,
+        "b": 0.4,
+        "c": -0.4
+      },
+      "expected": 0.46177705,
+      "tol": 1e-06
+    },
+    {
+      "id": "jump_atm_iv",
+      "ref": "Ch 20.8 single large jump: S = 50 moves to 42 or 58 in one month; the at-the-money implied vol (computed)",
+      "kind": "binary_jump_implied_vol",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 50.0,
+        "rate": 0.0,
+        "t": 0.08333333333333333,
+        "up": 58.0,
+        "down": 42.0,
+        "p_up": 0.5
+      },
+      "expected": 0.6958,
+      "tol": 0.0001
+    },
+    {
+      "id": "jump_wing_iv",
+      "ref": "Ch 20.8 single large jump: K = 56 has a lower implied vol, a frown (computed)",
+      "kind": "binary_jump_implied_vol",
+      "inputs": {
+        "type": "call",
+        "strike": 56.0,
+        "spot": 50.0,
+        "rate": 0.0,
+        "t": 0.08333333333333333,
+        "up": 58.0,
+        "down": 42.0,
+        "p_up": 0.5
+      },
+      "expected": 0.5131,
+      "tol": 0.0001
+    }
+  ]
+}

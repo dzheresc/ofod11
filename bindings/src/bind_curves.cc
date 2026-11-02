@@ -8,6 +8,7 @@
 #include "bindings.h"
 #include "ofod/curves/bond_bootstrap.h"
 #include "ofod/curves/swap_bootstrap.h"
+#include "ofod/curves/vol_surface.h"
 #include "ofod/curves/zero_curve.h"
 
 namespace ofod::bindings {
@@ -47,6 +48,43 @@ void BindCurves(nb::module_& m) {
         return std::vector<double>(c.zero_rates().begin(),
                                    c.zero_rates().end());
       });
+
+  using curves::VolInterpolation;
+  using curves::VolSurface;
+  nb::enum_<VolInterpolation>(m, "VolInterpolation")
+      .value("TOTAL_VARIANCE", VolInterpolation::kTotalVariance)
+      .value("LINEAR_VOL", VolInterpolation::kLinearVol);
+  nb::class_<VolSurface>(m, "VolSurface")
+      .def(
+          "__init__",
+          [](VolSurface* self, std::vector<double> maturities,
+             std::vector<double> strikes,
+             std::vector<std::vector<double>> volatilities,
+             VolInterpolation interpolation) {
+            auto surface =
+                VolSurface::Create(std::move(maturities), std::move(strikes),
+                                   std::move(volatilities), interpolation);
+            if (!surface) {
+              throw nb::value_error("invalid volatility surface grid");
+            }
+            new (self) VolSurface(*std::move(surface));
+          },
+          nb::arg("maturities"), nb::arg("strikes"), nb::arg("volatilities"),
+          nb::arg("interpolation") = VolInterpolation::kTotalVariance)
+      .def("volatility", &VolSurface::Volatility, nb::arg("strike"),
+           nb::arg("t"))
+      .def_prop_ro("maturities",
+                   [](const VolSurface& s) {
+                     return std::vector<double>(s.maturities().begin(),
+                                                s.maturities().end());
+                   })
+      .def_prop_ro("strikes",
+                   [](const VolSurface& s) {
+                     return std::vector<double>(s.strikes().begin(),
+                                                s.strikes().end());
+                   })
+      .def_prop_ro("volatilities", &VolSurface::volatilities)
+      .def_prop_ro("interpolation", &VolSurface::interpolation);
 
   nb::class_<BondQuote>(m, "BondQuote")
       .def(nb::init<instruments::Bond, double>(), nb::arg("bond"),

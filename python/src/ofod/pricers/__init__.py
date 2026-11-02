@@ -39,6 +39,9 @@ from ofod.pricers.bounds import european_call_lower_bound
 from ofod.pricers.bounds import european_put_lower_bound
 from ofod.pricers.bounds import european_put_upper_bound
 from ofod.pricers.bounds import put_from_parity
+from ofod.pricers.eso import EsoTerms
+from ofod.pricers.eso import expected_life_value
+from ofod.pricers.eso import price_employee_stock_option
 from ofod.pricers.finite_difference import AmericanSolver
 from ofod.pricers.finite_difference import FdGrid
 from ofod.pricers.finite_difference import FdScheme
@@ -60,6 +63,11 @@ from ofod.pricers.monte_carlo import VarianceReduction
 from ofod.pricers.monte_carlo import mix_seed
 from ofod.pricers.monte_carlo import monte_carlo_european
 from ofod.pricers.monte_carlo import simulate_gbm_paths
+from ofod.pricers.smile import binary_jump_price
+from ofod.pricers.smile import implied_density
+from ofod.pricers.smile import lognormal_density
+from ofod.pricers.smile import minimum_variance_delta
+from ofod.pricers.smile import strike_from_delta
 from ofod.pricers.swap_pricer import comparative_advantage_gain
 from ofod.pricers.swap_pricer import currency_swap_value
 from ofod.pricers.swap_pricer import fixed_leg_bond_value
@@ -71,6 +79,7 @@ from ofod.pricers.swap_pricer import swap_value_as_fras
 __all__ = [
     "AmericanSolver",
     "CHUNK_PATHS",
+    "EsoTerms",
     "FdGrid",
     "FdScheme",
     "ForwardArbitrage",
@@ -84,6 +93,7 @@ __all__ = [
     "VarianceReduction",
     "american_call_minus_put",
     "american_put_upper_bound",
+    "binary_jump_price",
     "black76_price",
     "black_american_call_approximation",
     "bond_price",
@@ -104,6 +114,7 @@ __all__ = [
     "european_call_lower_bound",
     "european_put_lower_bound",
     "european_put_upper_bound",
+    "expected_life_value",
     "fixed_leg_bond_value",
     "floating_leg_bond_value",
     "forward_contract_value",
@@ -115,8 +126,11 @@ __all__ = [
     "futures_put_from_parity",
     "futures_style_option_price",
     "garman_kohlhagen_price",
+    "implied_density",
     "implied_volatility",
+    "lognormal_density",
     "macaulay_duration",
+    "minimum_variance_delta",
     "mix_seed",
     "modified_duration",
     "monte_carlo_european",
@@ -125,6 +139,7 @@ __all__ = [
     "present_value",
     "price_binomial",
     "price_binomial_with_dividends",
+    "price_employee_stock_option",
     "price_finite_difference",
     "price_tree",
     "price_trinomial",
@@ -133,6 +148,7 @@ __all__ = [
     "scheme_step",
     "simple_forward_rate",
     "simulate_gbm_paths",
+    "strike_from_delta",
     "swap_value",
     "swap_value_as_fras",
     "warrant_price",
