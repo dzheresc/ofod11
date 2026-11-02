@@ -1,0 +1,151 @@
+{
+  "chapter": 13,
+  "cases": [
+    {
+      "id": "one_step_call",
+      "ref": "Ch 13.1-13.2: S0=20, u=1.1, d=0.9, K=21, r=12%, T=3m",
+      "kind": "tree_price",
+      "inputs": {
+        "option": {
+          "type": "call",
+          "exercise": "european",
+          "strike": 21.0,
+          "maturity": 0.25
+        },
+        "spot": 20.0,
+        "rate": 0.12,
+        "steps": 1,
+        "up": 1.1,
+        "down": 0.9
+      },
+      "expected": 0.633,
+      "tol": 0.0005
+    },
+    {
+      "id": "one_step_delta",
+      "ref": "Ch 13.1 delta",
+      "kind": "tree_delta",
+      "inputs": {
+        "option": {
+          "type": "call",
+          "exercise": "european",
+          "strike": 21.0,
+          "maturity": 0.25
+        },
+        "spot": 20.0,
+        "rate": 0.12,
+        "steps": 1,
+        "up": 1.1,
+        "down": 0.9
+      },
+      "expected": 0.25,
+      "tol": 1e-12
+    },
+    {
+      "id": "two_step_call",
+      "ref": "Ch 13.4: two steps of 3m (book rounds p to 4 decimals)",
+      "kind": "tree_price",
+      "inputs": {
+        "option": {
+          "type": "call",
+          "exercise": "european",
+          "strike": 21.0,
+          "maturity": 0.5
+        },
+        "spot": 20.0,
+        "rate": 0.12,
+        "steps": 2,
+        "up": 1.1,
+        "down": 0.9
+      },
+      "expected": 1.2823,
+      "tol": 0.0005
+    },
+    {
+      "id": "two_step_european_put",
+      "ref": "Ch 13.5: S0=50, K=52, u=1.2, d=0.8, r=5%, T=2 (book rounds p to 4 decimals)",
+      "kind": "tree_price",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "european",
+          "strike": 52.0,
+          "maturity": 2.0
+        },
+        "spot": 50.0,
+        "rate": 0.05,
+        "steps": 2,
+        "up": 1.2,
+        "down": 0.8
+      },
+      "expected": 4.1923,
+      "tol": 0.0005
+    },
+    {
+      "id": "two_step_american_put",
+      "ref": "Ch 13.6: the same put, American (book rounds p to 4 decimals)",
+      "kind": "tree_price",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 52.0,
+          "maturity": 2.0
+        },
+        "spot": 50.0,
+        "rate": 0.05,
+        "steps": 2,
+        "up": 1.2,
+        "down": 0.8
+      },
+      "expected": 5.0894,
+      "tol": 0.0005
+    },
+    {
+      "id": "crr_american_put",
+      "ref": "Fig 21.3: S0=50, K=50, r=10%, sigma=40%, T=5m, 5 steps",
+      "kind": "binomial_price",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 50.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "steps": 5,
+        "scheme": "crr"
+      },
+      "expected": 4.49,
+      "tol": 0.005
+    },
+    {
+      "id": "crr_converges_to_bsm",
+      "ref": "Ch 13 appendix: S0=42, K=40, r=10%, sigma=20%, T=0.5 (BSM 4.76)",
+      "kind": "binomial_price",
+      "inputs": {
+        "option": {
+          "type": "call",
+          "exercise": "european",
+          "strike": 40.0,
+          "maturity": 0.5
+        },
+        "market": {
+          "spot": 42.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.2
+        },
+        "steps": 2000,
+        "scheme": "crr"
+      },
+      "expected": 4.7594,
+      "tol": 0.001
+    }
+  ]
+}

@@ -17,6 +17,11 @@ add_library(ofod
   src/pricers/bond_pricer.cc
   src/pricers/forward_pricer.cc
   src/pricers/fra_pricer.cc
+  src/instruments/option.cc
+  src/instruments/portfolio.cc
+  src/pricers/binomial_tree.cc
+  src/pricers/bounds.cc
+  src/strategies/strategies.cc
 )
 add_library(ofod::ofod ALIAS ofod)
 

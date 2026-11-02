@@ -25,6 +25,7 @@ nanobind_add_module(_core NB_STATIC
   src/bind_pricers.cc
   src/bind_risk.cc
   src/bind_stats.cc
+  src/bind_strategies.cc
 )
 target_link_libraries(_core PRIVATE ofod::ofod)
 

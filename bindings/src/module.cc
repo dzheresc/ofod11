@@ -26,4 +26,7 @@ NB_MODULE(_core, m) {
   ofod::bindings::BindFutures(futures);
   nanobind::module_ credit = m.def_submodule("credit", "ofod::credit");
   ofod::bindings::BindCredit(credit);
+  nanobind::module_ strategies =
+      m.def_submodule("strategies", "ofod::strategies");
+  ofod::bindings::BindStrategies(strategies);
 }

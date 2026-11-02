@@ -19,6 +19,7 @@ _SUBMODULES = (
     "pricers",
     "risk",
     "stats",
+    "strategies",
 )
 # Typing-only names (Protocols) have no runtime counterpart in C++.
 _TYPING_ONLY = {"Payoff"}
@@ -109,3 +110,39 @@ def test_positions_accept_any_callable() -> None:
     assert pos.profit_at(400.0) == 5500.0
     straddle_leg = ofod_cpp.instruments.Position(lambda s: abs(s - 100.0))
     assert straddle_leg.payoff_at(90.0) == 10.0
+
+
+@given(
+    st.floats(min_value=20.0, max_value=80.0),
+    st.floats(min_value=20.0, max_value=80.0),
+    st.floats(min_value=0.05, max_value=0.6),
+    st.sampled_from(["COX_ROSS_RUBINSTEIN", "JARROW_RUDD", "TIAN"]),
+    st.sampled_from(["EUROPEAN", "AMERICAN"]),
+)
+def test_binomial_tree(
+    spot: float, strike: float, vol: float, scheme: str, exercise: str
+) -> None:
+    def price(lib) -> float:
+        option = lib.instruments.VanillaOption(
+            lib.instruments.OptionType.PUT,
+            getattr(lib.instruments.Exercise, exercise),
+            strike,
+            1.0,
+        )
+        market = lib.pricers.TreeMarket(spot, 0.05, 0.01, vol)
+        scheme_ = getattr(lib.pricers.TreeScheme, scheme)
+        return lib.pricers.price_binomial(option, market, 50, scheme_).price
+
+    assert price(ofod_cpp) == pytest.approx(price(ofod), rel=1e-11, abs=1e-12)
+
+
+def test_portfolio_accepts_python_payoffs() -> None:
+    p = ofod_cpp.instruments.Portfolio()
+    p.add(1.0, ofod_cpp.instruments.CallPayoff(50.0), 3.0).add(
+        -1.0, lambda s: max(s - 60.0, 0.0), 1.0
+    )
+    assert p.profit_at(70.0) == 8.0
+    assert len(p.legs) == 2
+    for lib in (ofod, ofod_cpp):
+        with pytest.raises(ValueError):
+            lib.strategies.replicate_payoff(0.0, [1.0], [40.0])

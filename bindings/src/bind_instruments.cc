@@ -12,7 +12,9 @@
 #include "ofod/instruments/bond.h"
 #include "ofod/instruments/cash_flow.h"
 #include "ofod/instruments/fra.h"
+#include "ofod/instruments/option.h"
 #include "ofod/instruments/payoff.h"
+#include "ofod/instruments/portfolio.h"
 #include "ofod/instruments/swap.h"
 
 namespace ofod::bindings {
@@ -136,6 +138,82 @@ void BindInstruments(nb::module_& m) {
       .def_rw("premium", &AnyPosition::premium)
       .def("payoff_at", &AnyPosition::PayoffAt, nb::arg("spot"))
       .def("profit_at", &AnyPosition::ProfitAt, nb::arg("spot"));
+
+  using instruments::ContractTerms;
+  using instruments::Exercise;
+  using instruments::OptionType;
+  using instruments::VanillaOption;
+  nb::enum_<OptionType>(m, "OptionType")
+      .value("CALL", OptionType::kCall)
+      .value("PUT", OptionType::kPut);
+  nb::enum_<Exercise>(m, "Exercise")
+      .value("EUROPEAN", Exercise::kEuropean)
+      .value("AMERICAN", Exercise::kAmerican);
+  nb::class_<VanillaOption>(m, "VanillaOption")
+      .def(
+          "__init__",
+          [](VanillaOption* self, OptionType option_type, Exercise exercise,
+             double strike, double maturity) {
+            new (self) VanillaOption{option_type, exercise, strike, maturity};
+          },
+          nb::arg("option_type") = OptionType::kCall,
+          nb::arg("exercise") = Exercise::kEuropean, nb::arg("strike") = 0.0,
+          nb::arg("maturity") = 0.0)
+      .def_rw("option_type", &VanillaOption::option_type)
+      .def_rw("exercise", &VanillaOption::exercise)
+      .def_rw("strike", &VanillaOption::strike)
+      .def_rw("maturity", &VanillaOption::maturity);
+  m.def("intrinsic_value", &instruments::IntrinsicValue, nb::arg("option"),
+        nb::arg("spot"));
+
+  nb::class_<ContractTerms>(m, "ContractTerms")
+      .def(
+          "__init__",
+          [](ContractTerms* self, double strike, double shares) {
+            new (self) ContractTerms{strike, shares};
+          },
+          nb::arg("strike") = 0.0, nb::arg("shares") = 100.0)
+      .def_rw("strike", &ContractTerms::strike)
+      .def_rw("shares", &ContractTerms::shares);
+  m.def("adjust_for_split", &instruments::AdjustForSplit, nb::arg("terms"),
+        nb::arg("n"), nb::arg("m"));
+  m.def("adjust_for_stock_dividend", &instruments::AdjustForStockDividend,
+        nb::arg("terms"), nb::arg("fraction"));
+  m.def("naked_option_margin", &instruments::NakedOptionMargin,
+        nb::arg("option_type"), nb::arg("premium"), nb::arg("spot"),
+        nb::arg("strike"));
+
+  nb::class_<instruments::StockPayoff>(m, "StockPayoff")
+      .def(nb::init<>())
+      .def("__call__", &instruments::StockPayoff::operator(), nb::arg("spot"));
+  nb::class_<instruments::CashPayoff>(m, "CashPayoff")
+      .def(nb::init<double>(), nb::arg("amount"))
+      .def_rw("amount", &instruments::CashPayoff::amount)
+      .def("__call__", &instruments::CashPayoff::operator(), nb::arg("spot"));
+
+  using instruments::Leg;
+  using instruments::Portfolio;
+  nb::class_<Leg>(m, "Leg")
+      .def(
+          "__init__",
+          [](Leg* self, double quantity, std::function<double(double)> payoff,
+             double premium) {
+            new (self) Leg{quantity, std::move(payoff), premium};
+          },
+          nb::arg("quantity"), nb::arg("payoff"), nb::arg("premium") = 0.0)
+      .def_rw("quantity", &Leg::quantity)
+      .def_rw("payoff", &Leg::payoff)
+      .def_rw("premium", &Leg::premium);
+  nb::class_<Portfolio>(m, "Portfolio")
+      .def(nb::init<>())
+      .def("add", &Portfolio::Add, nb::arg("quantity"), nb::arg("payoff"),
+           nb::arg("premium") = 0.0, nb::rv_policy::reference_internal)
+      .def("payoff_at", &Portfolio::PayoffAt, nb::arg("spot"))
+      .def("cost", &Portfolio::Cost)
+      .def("profit_at", &Portfolio::ProfitAt, nb::arg("spot"))
+      .def_prop_ro("legs", [](const Portfolio& p) {
+        return std::vector<Leg>(p.legs().begin(), p.legs().end());
+      });
 }
 
 }  // namespace ofod::bindings

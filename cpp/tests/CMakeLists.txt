@@ -13,7 +13,11 @@ add_executable(ofod_tests
   curves/zero_curve_test.cc
   golden/golden_test.cc
   instruments/bond_test.cc
+  instruments/option_test.cc
   instruments/payoff_test.cc
+  pricers/binomial_tree_test.cc
+  pricers/bounds_test.cc
+  strategies/strategies_test.cc
   math/interpolation_test.cc
   math/normal_test.cc
   math/roots_test.cc

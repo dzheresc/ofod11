@@ -9,6 +9,7 @@ from ofod import math
 from ofod import pricers
 from ofod import risk
 from ofod import stats
+from ofod import strategies
 
 __version__ = "0.1.0"
 
@@ -22,4 +23,5 @@ __all__ = [
     "pricers",
     "risk",
     "stats",
+    "strategies",
 ]

@@ -44,6 +44,17 @@ struct PutPayoff {
   }
 };
 
+// One unit of the underlying: S_T.
+struct StockPayoff {
+  constexpr double operator()(double spot) const { return spot; }
+};
+
+// A fixed amount, e.g. a zero-coupon bond's face value.
+struct CashPayoff {
+  double amount;
+  constexpr double operator()(double /*spot*/) const { return amount; }
+};
+
 // A holding of `quantity` units of a payoff, long or short. `premium` is the
 // price per unit paid (long) or received (short) at inception.
 template <Payoff P>

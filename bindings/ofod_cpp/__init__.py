@@ -18,6 +18,7 @@ math = _core.math
 pricers = _core.pricers
 risk = _core.risk
 stats = _core.stats
+strategies = _core.strategies
 
 # Make `import ofod_cpp.core` work like it does for the pure-Python package.
 for _name in (
@@ -30,6 +31,7 @@ for _name in (
     "pricers",
     "risk",
     "stats",
+    "strategies",
 ):
     sys.modules[f"{__name__}.{_name}"] = getattr(_core, _name)
 
@@ -43,4 +45,5 @@ __all__ = [
     "pricers",
     "risk",
     "stats",
+    "strategies",
 ]

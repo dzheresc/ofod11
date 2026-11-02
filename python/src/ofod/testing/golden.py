@@ -203,6 +203,92 @@ def _evaluate_m2(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _option(lib: types.ModuleType, j: dict[str, Any]) -> Any:
+    ins = lib.instruments
+    return ins.VanillaOption(
+        option_type=getattr(ins.OptionType, j["type"].upper()),
+        exercise=getattr(ins.Exercise, j["exercise"].upper()),
+        strike=j["strike"],
+        maturity=j["maturity"],
+    )
+
+
+_SCHEMES = {
+    "crr": "COX_ROSS_RUBINSTEIN",
+    "jr": "JARROW_RUDD",
+    "tian": "TIAN",
+}
+
+
+def _evaluate_m3(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 10-13; returns None when `kind` is not one of them."""
+    ins = lib.instruments
+    p = lib.pricers
+    if kind == "naked_option_margin":
+        t = getattr(ins.OptionType, i["option_type"].upper())
+        margin = ins.naked_option_margin(
+            t, i["premium"], i["spot"], i["strike"]
+        )
+        return i["units"] * margin
+    if kind == "adjust_for_split":
+        terms = ins.adjust_for_split(
+            ins.ContractTerms(i["strike"], i["shares"]), i["n"], i["m"]
+        )
+        return [terms.strike, terms.shares]
+    if kind == "adjust_for_stock_dividend":
+        terms = ins.adjust_for_stock_dividend(
+            ins.ContractTerms(i["strike"], i["shares"]), i["fraction"]
+        )
+        return [terms.strike, terms.shares]
+    if kind == "european_call_lower_bound":
+        return p.european_call_lower_bound(
+            i["spot"], i["strike"], i["rate"], i["t"]
+        )
+    if kind == "european_put_lower_bound":
+        return p.european_put_lower_bound(
+            i["spot"], i["strike"], i["rate"], i["t"]
+        )
+    if kind == "put_from_parity":
+        return p.put_from_parity(
+            i["call"], i["spot"], i["strike"], i["rate"], i["t"]
+        )
+    if kind == "american_call_minus_put":
+        r = p.american_call_minus_put(i["spot"], i["strike"], i["rate"], i["t"])
+        return [r.lower, r.upper]
+    if kind in ("strategy_profit", "strategy_cost"):
+        portfolio = getattr(lib.strategies, i["strategy"])(*i["args"])
+        if kind == "strategy_cost":
+            return portfolio.cost()
+        return [portfolio.profit_at(s) for s in i["spots"]]
+    if kind == "principal_protected_budget":
+        return lib.strategies.principal_protected_budget(
+            i["principal"], i["rate"], i["t"]
+        )
+    if kind in ("tree_price", "tree_delta"):
+        option = _option(lib, i["option"])
+        growth = math.exp(i["rate"] * option.maturity / i["steps"])
+        step = p.TreeStep(
+            i["up"],
+            i["down"],
+            p.risk_neutral_probability(i["up"], i["down"], growth),
+        )
+        result = p.price_tree(option, i["spot"], i["rate"], i["steps"], step)
+        return result.price if kind == "tree_price" else result.delta
+    if kind == "binomial_price":
+        m = i["market"]
+        market = p.TreeMarket(
+            spot=m["spot"],
+            rate=m["rate"],
+            yield_=m["yield"],
+            volatility=m["volatility"],
+        )
+        scheme = getattr(p.TreeScheme, _SCHEMES[i["scheme"]])
+        return p.price_binomial(
+            _option(lib, i["option"]), market, i["steps"], scheme
+        ).price
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -281,9 +367,10 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         return p.forward_contract_value(
             f, i["delivery_price"], i["rate"], i["t"], lib.instruments.Side.LONG
         )
-    result = _evaluate_m2(lib, kind, i)
-    if result is not None:
-        return result
+    for extra in (_evaluate_m2, _evaluate_m3):
+        result = extra(lib, kind, i)
+        if result is not None:
+            return result
     raise KeyError(f"unknown golden case kind: {kind}")
 
 

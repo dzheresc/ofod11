@@ -83,3 +83,24 @@ class Position:
         return (
             sign(self.side) * self.quantity * (self.payoff(spot) - self.premium)
         )
+
+
+@dataclasses.dataclass(frozen=True)
+class StockPayoff:
+    """One unit of the underlying: S_T."""
+
+    def __call__(self, spot: float) -> float:
+        """Returns `spot`."""
+        return spot
+
+
+@dataclasses.dataclass(frozen=True)
+class CashPayoff:
+    """A fixed amount, e.g. a zero-coupon bond's face value."""
+
+    amount: float
+
+    def __call__(self, spot: float) -> float:
+        """Returns the fixed amount whatever `spot` is."""
+        del spot
+        return self.amount

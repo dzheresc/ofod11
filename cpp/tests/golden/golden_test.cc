@@ -7,6 +7,7 @@
 #include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,10 +19,15 @@
 #include "ofod/futures/rate_futures.h"
 #include "ofod/futures/treasury.h"
 #include "ofod/instruments/bond.h"
+#include "ofod/instruments/option.h"
+#include "ofod/instruments/portfolio.h"
+#include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/bond_pricer.h"
+#include "ofod/pricers/bounds.h"
 #include "ofod/pricers/forward_pricer.h"
 #include "ofod/pricers/swap_pricer.h"
 #include "ofod/risk/hedging.h"
+#include "ofod/strategies/strategies.h"
 
 namespace ofod {
 namespace {
@@ -76,6 +82,45 @@ instruments::InterestRateSwap ParseSwap(const json& j) {
           .frequency = j["frequency"],
           .payment_times = j["payment_times"].get<std::vector<double>>(),
           .next_floating_rate = j["next_floating_rate"]};
+}
+
+instruments::VanillaOption ParseOption(const json& j) {
+  using instruments::Exercise;
+  using instruments::OptionType;
+  return {
+      .option_type = j["type"] == "call" ? OptionType::kCall : OptionType::kPut,
+      .exercise = j["exercise"] == "american" ? Exercise::kAmerican
+                                              : Exercise::kEuropean,
+      .strike = j["strike"],
+      .maturity = j["maturity"]};
+}
+
+instruments::Portfolio MakeStrategy(const json& in) {
+  namespace st = strategies;
+  const std::string name = in["strategy"];
+  const auto a = in["args"].get<std::vector<double>>();
+  if (name == "bull_call_spread")
+    return st::BullCallSpread(a[0], a[1], a[2], a[3]);
+  if (name == "bear_put_spread")
+    return st::BearPutSpread(a[0], a[1], a[2], a[3]);
+  if (name == "butterfly_call_spread") {
+    return st::ButterflyCallSpread(a[0], a[1], a[2], a[3], a[4], a[5]);
+  }
+  if (name == "straddle") return st::Straddle(a[0], a[1], a[2]);
+  FAIL("unknown strategy: " << name);
+  return {};
+}
+
+std::optional<pricers::TreeResult> EvaluateTree(const json& in) {
+  const auto option = ParseOption(in["option"]);
+  const int steps = in["steps"];
+  const double rate = in["rate"];
+  const double up = in["up"];
+  const double down = in["down"];
+  const double growth = std::exp(rate * option.maturity / steps);
+  return pricers::PriceTree(
+      option, in["spot"], rate, steps,
+      {up, down, pricers::RiskNeutralProbability(up, down, growth)});
 }
 
 // Returns the value the library computes for one scalar case.
@@ -230,6 +275,51 @@ double EvaluateScalar(const std::string& kind, const json& in) {
                                              in["floating_spread_a"],
                                              in["floating_spread_b"]);
   }
+  if (kind == "naked_option_margin") {
+    const auto type = in["option_type"] == "call"
+                          ? instruments::OptionType::kCall
+                          : instruments::OptionType::kPut;
+    return in["units"].get<double>() *
+           instruments::NakedOptionMargin(type, in["premium"], in["spot"],
+                                          in["strike"]);
+  }
+  if (kind == "european_call_lower_bound") {
+    return pricers::EuropeanCallLowerBound(in["spot"], in["strike"], in["rate"],
+                                           in["t"]);
+  }
+  if (kind == "european_put_lower_bound") {
+    return pricers::EuropeanPutLowerBound(in["spot"], in["strike"], in["rate"],
+                                          in["t"]);
+  }
+  if (kind == "put_from_parity") {
+    return pricers::PutFromParity(in["call"], in["spot"], in["strike"],
+                                  in["rate"], in["t"]);
+  }
+  if (kind == "strategy_cost") return MakeStrategy(in).Cost();
+  if (kind == "principal_protected_budget") {
+    return strategies::PrincipalProtectedBudget(in["principal"], in["rate"],
+                                                in["t"]);
+  }
+  if (kind == "tree_price" || kind == "tree_delta") {
+    const auto result = EvaluateTree(in);
+    REQUIRE(result.has_value());
+    return kind == "tree_price" ? result->price : result->delta;
+  }
+  if (kind == "binomial_price") {
+    const auto& m = in["market"];
+    const pricers::TreeMarket market{.spot = m["spot"],
+                                     .rate = m["rate"],
+                                     .yield = m["yield"],
+                                     .volatility = m["volatility"]};
+    const std::string scheme = in["scheme"];
+    const auto result = pricers::PriceBinomial(
+        ParseOption(in["option"]), market, in["steps"],
+        scheme == "crr"    ? pricers::TreeScheme::kCoxRossRubinstein
+        : scheme == "tian" ? pricers::TreeScheme::kTian
+                           : pricers::TreeScheme::kJarrowRudd);
+    REQUIRE(result.has_value());
+    return result->price;
+  }
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -272,6 +362,27 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
     }
     return out;
   }
+  if (kind == "adjust_for_split") {
+    const auto t = instruments::AdjustForSplit({in["strike"], in["shares"]},
+                                               in["n"], in["m"]);
+    return {t.strike, t.shares};
+  }
+  if (kind == "adjust_for_stock_dividend") {
+    const auto t = instruments::AdjustForStockDividend(
+        {in["strike"], in["shares"]}, in["fraction"]);
+    return {t.strike, t.shares};
+  }
+  if (kind == "american_call_minus_put") {
+    const auto r = pricers::AmericanCallMinusPut(in["spot"], in["strike"],
+                                                 in["rate"], in["t"]);
+    return {r.lower, r.upper};
+  }
+  if (kind == "strategy_profit") {
+    const auto portfolio = MakeStrategy(in);
+    std::vector<double> out;
+    for (double s : in["spots"]) out.push_back(portfolio.ProfitAt(s));
+    return out;
+  }
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -308,6 +419,22 @@ TEST_CASE("Golden: Chapter 6 interest rate futures", "[golden][ch06]") {
 }
 
 TEST_CASE("Golden: Chapter 7 swaps", "[golden][ch07]") { RunChapter(7); }
+
+TEST_CASE("Golden: Chapter 10 options markets", "[golden][ch10]") {
+  RunChapter(10);
+}
+
+TEST_CASE("Golden: Chapter 11 option properties", "[golden][ch11]") {
+  RunChapter(11);
+}
+
+TEST_CASE("Golden: Chapter 12 trading strategies", "[golden][ch12]") {
+  RunChapter(12);
+}
+
+TEST_CASE("Golden: Chapter 13 binomial trees", "[golden][ch13]") {
+  RunChapter(13);
+}
 
 TEST_CASE("Golden: Chapter 4 interest rates", "[golden][ch04]") {
   RunChapter(4);

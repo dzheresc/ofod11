@@ -29,6 +29,7 @@ void BindStats(nanobind::module_& m);
 void BindRisk(nanobind::module_& m);
 void BindFutures(nanobind::module_& m);
 void BindCredit(nanobind::module_& m);
+void BindStrategies(nanobind::module_& m);
 
 }  // namespace ofod::bindings
 

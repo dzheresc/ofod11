@@ -1,0 +1,61 @@
+{
+  "chapter": 11,
+  "cases": [
+    {
+      "id": "call_lower_bound",
+      "ref": "Ch 11.4 example: S0=20, K=18, r=10%, T=1",
+      "kind": "european_call_lower_bound",
+      "inputs": {
+        "spot": 20.0,
+        "strike": 18.0,
+        "rate": 0.1,
+        "t": 1.0
+      },
+      "expected": 3.71,
+      "tol": 0.005
+    },
+    {
+      "id": "put_lower_bound",
+      "ref": "Ch 11.4 example: S0=37, K=40, r=5%, T=0.5",
+      "kind": "european_put_lower_bound",
+      "inputs": {
+        "spot": 37.0,
+        "strike": 40.0,
+        "rate": 0.05,
+        "t": 0.5
+      },
+      "expected": 2.01,
+      "tol": 0.005
+    },
+    {
+      "id": "put_call_parity",
+      "ref": "Ch 11.4 parity: c=3, S0=31, K=30, r=10%, T=0.25",
+      "kind": "put_from_parity",
+      "inputs": {
+        "call": 3.0,
+        "spot": 31.0,
+        "strike": 30.0,
+        "rate": 0.1,
+        "t": 0.25
+      },
+      "expected": 1.26,
+      "tol": 0.005
+    },
+    {
+      "id": "american_c_minus_p",
+      "ref": "Ch 11.4 American: S0=19, K=20, r=10%, T=5/12",
+      "kind": "american_call_minus_put",
+      "inputs": {
+        "spot": 19.0,
+        "strike": 20.0,
+        "rate": 0.1,
+        "t": 0.4166666666667
+      },
+      "expected": [
+        -1.0,
+        -0.18
+      ],
+      "tol": 0.005
+    }
+  ]
+}
