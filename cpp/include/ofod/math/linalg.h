@@ -24,6 +24,11 @@ struct Eigen {
 // 1e-12 relative), or the sweeps do not converge.
 [[nodiscard]] std::optional<Eigen> SymmetricEigen(const Matrix& a);
 
+// Solves A x = b by Gaussian elimination with partial pivoting. Returns
+// std::nullopt unless A is square, matches b and is non-singular.
+[[nodiscard]] std::optional<std::vector<double>> SolveLinear(
+    Matrix a, std::vector<double> b);
+
 }  // namespace ofod::math
 
 #endif  // OFOD_MATH_LINALG_H_

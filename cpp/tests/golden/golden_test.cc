@@ -33,13 +33,16 @@
 #include "ofod/math/linalg.h"
 #include "ofod/math/normal.h"
 #include "ofod/models/brownian.h"
+#include "ofod/pricers/american_mc.h"
 #include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
 #include "ofod/pricers/eso.h"
+#include "ofod/pricers/exotics.h"
 #include "ofod/pricers/finite_difference.h"
 #include "ofod/pricers/forward_pricer.h"
+#include "ofod/pricers/model_pricers.h"
 #include "ofod/pricers/monte_carlo.h"
 #include "ofod/pricers/smile.h"
 #include "ofod/pricers/swap_pricer.h"
@@ -632,6 +635,148 @@ std::optional<std::vector<double>> EvaluateM8Vector(const std::string& kind,
   return std::nullopt;
 }
 
+pricers::TreeMarket ParseTreeMarket(const json& j) {
+  return {.spot = j["spot"],
+          .rate = j["rate"],
+          .yield = j["yield"],
+          .volatility = j["volatility"]};
+}
+
+double Value(std::optional<double> v) {
+  REQUIRE(v.has_value());
+  return *v;
+}
+
+pricers::CompoundType ParseCompound(const std::string& s) {
+  if (s == "call_on_call") return pricers::CompoundType::kCallOnCall;
+  if (s == "put_on_call") return pricers::CompoundType::kPutOnCall;
+  if (s == "call_on_put") return pricers::CompoundType::kCallOnPut;
+  return pricers::CompoundType::kPutOnPut;
+}
+
+pricers::BarrierType ParseBarrier(const std::string& s) {
+  if (s == "down_and_out") return pricers::BarrierType::kDownAndOut;
+  if (s == "down_and_in") return pricers::BarrierType::kDownAndIn;
+  if (s == "up_and_out") return pricers::BarrierType::kUpAndOut;
+  return pricers::BarrierType::kUpAndIn;
+}
+
+// Chapters 26 and 27; std::nullopt when `kind` is not one of theirs.
+std::optional<double> EvaluateM9(const std::string& kind, const json& in) {
+  namespace p = pricers;
+  if (kind == "exchange") {
+    return p::ExchangeOptionPrice({.receive_spot = in["receive_spot"],
+                                   .deliver_spot = in["deliver_spot"],
+                                   .receive_yield = in["receive_yield"],
+                                   .deliver_yield = in["deliver_yield"],
+                                   .receive_vol = in["receive_vol"],
+                                   .deliver_vol = in["deliver_vol"],
+                                   .correlation = in["correlation"]},
+                                  in["t"]);
+  }
+  if (!in.contains("market")) return std::nullopt;
+  const auto m = ParseTreeMarket(in["market"]);
+  const auto type =
+      in.contains("type") ? ParseType(in["type"]) : p::OptionType::kCall;
+  if (kind == "gap_option") {
+    return p::GapOptionPrice(type, m, in["strike"], in["trigger"], in["t"]);
+  }
+  if (kind == "floating_lookback") {
+    return Value(p::FloatingLookbackPrice(type, m, in["extreme"], in["t"]));
+  }
+  if (kind == "fixed_lookback") {
+    return Value(
+        p::FixedLookbackPrice(type, m, in["strike"], in["extreme"], in["t"]));
+  }
+  if (kind == "arithmetic_asian") {
+    return Value(p::ArithmeticAsianPrice(type, m, in["strike"], in["t"]));
+  }
+  if (kind == "geometric_asian") {
+    return p::GeometricAsianPrice(type, m, in["strike"], in["t"]);
+  }
+  if (kind == "chooser") {
+    return p::ChooserPrice(m, in["strike"], in["t1"], in["t2"]);
+  }
+  if (kind == "forward_start") {
+    return p::ForwardStartPrice(type, m, in["t1"], in["t2"]);
+  }
+  if (kind == "perpetual_american") {
+    return Value(p::PerpetualAmericanPrice(type, m, in["strike"]));
+  }
+  if (kind == "cash_or_nothing") {
+    return p::CashOrNothingPrice(type, m, in["strike"], in["t"], in["cash"]);
+  }
+  if (kind == "asset_or_nothing") {
+    return p::AssetOrNothingPrice(type, m, in["strike"], in["t"]);
+  }
+  if (kind == "compound") {
+    return Value(p::CompoundOptionPrice(ParseCompound(in["compound"]), m,
+                                        in["k1"], in["t1"], in["k2"],
+                                        in["t2"]));
+  }
+  if (kind == "barrier") {
+    return p::BarrierOptionPrice(ParseBarrier(in["barrier"]), type, m,
+                                 in["strike"], in["level"], in["t"]);
+  }
+  if (kind == "variance_swap") {
+    const double lo = in["k_lo"];
+    const double step = in["k_step"];
+    const auto n =
+        static_cast<int>(std::lround((in["k_hi"].get<double>() - lo) / step));
+    std::vector<double> strikes;
+    for (int k = 0; k <= n; ++k) strikes.push_back(lo + k * step);
+    const double atm = in["atm_vol"];
+    const double skew = in["skew"];
+    return Value(p::VarianceSwapFairVariance(
+        m, in["t"], strikes,
+        [atm, skew](double k) { return atm + skew * std::log(k / 100.0); }));
+  }
+  if (kind == "convertible") {
+    return Value(
+        p::ConvertibleBondPrice(m,
+                                {.face = in["face"],
+                                 .conversion_ratio = in["conversion_ratio"],
+                                 .maturity = in["maturity"],
+                                 .call_price = in["call_price"],
+                                 .recovery = in["recovery"],
+                                 .hazard = in["hazard"]},
+                                in["steps"]));
+  }
+  if (kind == "lsm") {
+    const auto r = p::LongstaffSchwartz(type, m, in["strike"], in["t"],
+                                        {.exercise_dates = in["exercise_dates"],
+                                         .paths = in["paths"],
+                                         .seed = in["seed"],
+                                         .basis_degree = in["basis_degree"]});
+    REQUIRE(r.has_value());
+    return r->price;
+  }
+  if (kind == "cev") {
+    return Value(p::CevPrice(type, m, in["strike"], in["t"], in["alpha"]));
+  }
+  if (kind == "merton_jump") {
+    return p::MertonJumpPrice(type, m, in["strike"], in["t"],
+                              {.intensity = in["intensity"],
+                               .mean_jump = in["mean_jump"],
+                               .jump_vol = in["jump_vol"]});
+  }
+  if (kind == "heston" || kind == "heston_mc") {
+    const p::HestonParams hp{.v0 = in["v0"],
+                             .kappa = in["kappa"],
+                             .theta = in["theta"],
+                             .sigma = in["sigma"],
+                             .rho = in["rho"]};
+    if (kind == "heston") {
+      return p::HestonPrice(type, m, in["strike"], in["t"], hp);
+    }
+    const auto r = p::HestonMonteCarlo(type, m, in["strike"], in["t"], hp,
+                                       in["steps"], in["paths"], in["seed"]);
+    REQUIRE(r.has_value());
+    return r->price;
+  }
+  return std::nullopt;
+}
+
 // Returns the value the library computes for one scalar case.
 double EvaluateScalar(const std::string& kind, const json& in) {
   if (kind == "growth_factor") {
@@ -933,6 +1078,7 @@ double EvaluateScalar(const std::string& kind, const json& in) {
   if (const auto v = EvaluateM6(kind, in)) return *v;
   if (const auto v = EvaluateM7(kind, in)) return *v;
   if (const auto v = EvaluateM8(kind, in)) return *v;
+  if (const auto v = EvaluateM9(kind, in)) return *v;
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -1132,6 +1278,14 @@ TEST_CASE("Golden: Chapter 4 interest rates", "[golden][ch04]") {
 
 TEST_CASE("Golden: Chapter 5 forward prices", "[golden][ch05]") {
   RunChapter(5);
+}
+
+TEST_CASE("Golden: Chapter 26 exotic options", "[golden][ch26]") {
+  RunChapter(26);
+}
+
+TEST_CASE("Golden: Chapter 27 more on models", "[golden][ch27]") {
+  RunChapter(27);
 }
 
 }  // namespace

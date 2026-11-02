@@ -1,0 +1,180 @@
+{
+  "chapter": 27,
+  "cases": [
+    {
+      "id": "convertible_example",
+      "ref": "Example 27.1: 9-month zero-coupon convertible, face 100, 2 shares, callable at 113, S0 = 50, sigma = 30%, r = 5%, lambda = 1%, R = 40%, 3 steps gives 106.93",
+      "kind": "convertible",
+      "inputs": {
+        "market": {
+          "spot": 50,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.3
+        },
+        "face": 100.0,
+        "conversion_ratio": 2.0,
+        "maturity": 0.75,
+        "call_price": 113.0,
+        "recovery": 0.4,
+        "hazard": 0.01,
+        "steps": 3
+      },
+      "expected": 106.93,
+      "tol": 0.005
+    },
+    {
+      "id": "lsm_american_put",
+      "ref": "Longstaff-Schwartz (2001) Table 1, used in Ch 27.8: S = 36, K = 40, r = 6%, sigma = 20%, T = 1, 50 dates: LSM 4.472, finite difference 4.478",
+      "kind": "lsm",
+      "inputs": {
+        "type": "put",
+        "market": {
+          "spot": 36,
+          "rate": 0.06,
+          "yield": 0,
+          "volatility": 0.2
+        },
+        "strike": 40.0,
+        "t": 1.0,
+        "exercise_dates": 50,
+        "paths": 100000,
+        "seed": 1,
+        "basis_degree": 2
+      },
+      "expected": 4.478,
+      "tol": 0.03
+    },
+    {
+      "id": "cev_alpha_half",
+      "ref": "Ch 27.1 CEV call, alpha = 0.5, sigma = 2 (20% at S = 100), r = 5%, T = 1 (computed; scipy ncx2 agrees)",
+      "kind": "cev",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 2.0
+        },
+        "strike": 100.0,
+        "t": 1.0,
+        "alpha": 0.5
+      },
+      "expected": 10.453885328717746,
+      "tol": 1e-09
+    },
+    {
+      "id": "cev_alpha_1_5_put",
+      "ref": "Ch 27.1 CEV put, alpha = 1.5 (computed)",
+      "kind": "cev",
+      "inputs": {
+        "type": "put",
+        "market": {
+          "spot": 100,
+          "rate": 0.05,
+          "yield": 0.01,
+          "volatility": 0.02
+        },
+        "strike": 110.0,
+        "t": 1.0,
+        "alpha": 1.5
+      },
+      "expected": 11.423898536931787,
+      "tol": 1e-09
+    },
+    {
+      "id": "merton_jump",
+      "ref": "Ch 27.1 Merton jump diffusion, lambda = 1, k = -10%, s = 20%, sigma = 20% (computed)",
+      "kind": "merton_jump",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.2
+        },
+        "strike": 100.0,
+        "t": 1.0,
+        "intensity": 1.0,
+        "mean_jump": -0.1,
+        "jump_vol": 0.2
+      },
+      "expected": 13.968292335524024,
+      "tol": 1e-10
+    },
+    {
+      "id": "heston_call",
+      "ref": "Ch 27.2 Heston call, v0 = theta = 0.04, kappa = 2, sigma = 0.3, rho = -0.7 (computed)",
+      "kind": "heston",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.03,
+          "yield": 0,
+          "volatility": 0
+        },
+        "strike": 100.0,
+        "t": 1.0,
+        "v0": 0.04,
+        "kappa": 2.0,
+        "theta": 0.04,
+        "sigma": 0.3,
+        "rho": -0.7
+      },
+      "expected": 9.242521073959,
+      "tol": 1e-09
+    },
+    {
+      "id": "heston_put_otm",
+      "ref": "Ch 27.2 Heston put, K = 80, vol of variance 0.5 (computed)",
+      "kind": "heston",
+      "inputs": {
+        "type": "put",
+        "market": {
+          "spot": 100,
+          "rate": 0.03,
+          "yield": 0.01,
+          "volatility": 0
+        },
+        "strike": 80.0,
+        "t": 1.0,
+        "v0": 0.04,
+        "kappa": 2.0,
+        "theta": 0.04,
+        "sigma": 0.5,
+        "rho": -0.7
+      },
+      "expected": 1.5881941647996456,
+      "tol": 1e-09
+    },
+    {
+      "id": "heston_mc",
+      "ref": "Ch 27.2 Heston by Monte Carlo with full truncation, 100 steps, 50,000 paths, against the semi-analytic 9.2425 (tol about 4 standard errors plus bias)",
+      "kind": "heston_mc",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.03,
+          "yield": 0,
+          "volatility": 0
+        },
+        "strike": 100.0,
+        "t": 1.0,
+        "v0": 0.04,
+        "kappa": 2.0,
+        "theta": 0.04,
+        "sigma": 0.3,
+        "rho": -0.7,
+        "steps": 100,
+        "paths": 50000,
+        "seed": 3
+      },
+      "expected": 9.2425,
+      "tol": 0.2
+    }
+  ]
+}
