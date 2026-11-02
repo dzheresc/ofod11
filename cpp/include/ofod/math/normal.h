@@ -23,6 +23,10 @@ namespace ofod::math {
 // precision). Returns -inf / +inf at p = 0 / 1 and NaN outside [0, 1].
 [[nodiscard]] double NormInv(double p) noexcept;
 
+// Returns M(a, b; rho) = P(X <= a, Y <= b) for standard normals with
+// correlation rho in [-1, 1] (Genz's BVND algorithm, ~1e-15 accuracy).
+[[nodiscard]] double BivariateNormCdf(double a, double b, double rho) noexcept;
+
 }  // namespace ofod::math
 
 #endif  // OFOD_MATH_NORMAL_H_

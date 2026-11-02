@@ -16,6 +16,7 @@
 #include "ofod/math/linalg.h"
 #include "ofod/math/normal.h"
 #include "ofod/math/optimize.h"
+#include "ofod/math/quadrature.h"
 #include "ofod/math/roots.h"
 
 namespace ofod::bindings {
@@ -29,6 +30,31 @@ void BindMath(nb::module_& m) {
   m.def("norm_cdf", &math::NormCdf, nb::arg("x"));
   m.def("norm_cdf_poly", &math::NormCdfPoly, nb::arg("x"));
   m.def("norm_inv", &math::NormInv, nb::arg("p"));
+  m.def("bivariate_norm_cdf", &math::BivariateNormCdf, nb::arg("a"),
+        nb::arg("b"), nb::arg("rho"));
+
+  using math::Quadrature;
+  nb::class_<Quadrature>(m, "Quadrature")
+      .def(nb::init<std::vector<double>, std::vector<double>>(),
+           nb::arg("nodes"), nb::arg("weights"))
+      .def_rw("nodes", &Quadrature::nodes)
+      .def_rw("weights", &Quadrature::weights);
+  m.def(
+      "gauss_hermite",
+      [](int n) {
+        auto q = math::GaussHermite(n);
+        if (!q) throw nb::value_error("need 1 <= n <= 200");
+        return *std::move(q);
+      },
+      nb::arg("n"));
+  m.def(
+      "gauss_hermite_normal",
+      [](int n) {
+        auto q = math::GaussHermiteNormal(n);
+        if (!q) throw nb::value_error("need 1 <= n <= 200");
+        return *std::move(q);
+      },
+      nb::arg("n"));
 
   m.def(
       "brent",

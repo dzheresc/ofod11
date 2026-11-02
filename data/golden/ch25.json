@@ -1,0 +1,321 @@
+{
+  "chapter": 25,
+  "cases": [
+    {
+      "id": "cds_annuity",
+      "ref": "Ch 25.3 example setup: hazard 2%, R 40%, r 5%, annual premiums, 5 years: PV of payments plus accrual (computed)",
+      "kind": "cds_leg",
+      "inputs": {
+        "maturity": 5.0,
+        "frequency": 1,
+        "recovery": 0.4,
+        "hazard": 0.02,
+        "rate": 0.05,
+        "output": "premium_annuity"
+      },
+      "expected": 4.115,
+      "tol": 5e-05
+    },
+    {
+      "id": "cds_protection",
+      "ref": "Ch 25.3 example setup: PV of expected payoff (computed)",
+      "kind": "cds_leg",
+      "inputs": {
+        "maturity": 5.0,
+        "frequency": 1,
+        "recovery": 0.4,
+        "hazard": 0.02,
+        "rate": 0.05,
+        "output": "protection"
+      },
+      "expected": 0.050615,
+      "tol": 1e-05
+    },
+    {
+      "id": "cds_par_spread",
+      "ref": "Ch 25.3 example setup: par spread (computed, about 123 bp)",
+      "kind": "cds_par_spread",
+      "inputs": {
+        "maturity": 5.0,
+        "frequency": 1,
+        "recovery": 0.4,
+        "hazard": 0.02,
+        "rate": 0.05
+      },
+      "expected": 0.0123,
+      "tol": 1e-06
+    },
+    {
+      "id": "cds_mark_to_market",
+      "ref": "Ch 25.3: value to the seller of a contract struck at 150 bp (computed)",
+      "kind": "cds_seller_value",
+      "inputs": {
+        "maturity": 5.0,
+        "frequency": 1,
+        "recovery": 0.4,
+        "hazard": 0.02,
+        "rate": 0.05,
+        "spread": 0.015
+      },
+      "expected": 0.011109,
+      "tol": 1e-06
+    },
+    {
+      "id": "cds_upfront",
+      "ref": "Ch 25.4 fixed coupon 100 bp: upfront paid by the buyer (computed)",
+      "kind": "cds_upfront",
+      "inputs": {
+        "maturity": 5.0,
+        "frequency": 1,
+        "recovery": 0.4,
+        "hazard": 0.02,
+        "rate": 0.05,
+        "coupon": 0.01
+      },
+      "expected": 0.009466,
+      "tol": 1e-06
+    },
+    {
+      "id": "bootstrap_reprices",
+      "ref": "Ch 25.3 hazard bootstrapping from 1-10 year quarterly CDS quotes reprices them",
+      "kind": "cds_bootstrap_reprice",
+      "inputs": {
+        "maturities": [
+          1,
+          3,
+          5,
+          7,
+          10
+        ],
+        "spreads": [
+          0.005,
+          0.007,
+          0.009,
+          0.01,
+          0.011
+        ],
+        "frequency": 4,
+        "recovery": 0.4,
+        "rate": 0.05
+      },
+      "expected": [
+        0.005,
+        0.007,
+        0.009,
+        0.01,
+        0.011
+      ],
+      "tol": 1e-11
+    },
+    {
+      "id": "bootstrap_hazards",
+      "ref": "Ch 25.3 hazard bootstrapping: the piecewise hazards (computed)",
+      "kind": "cds_bootstrap_hazards",
+      "inputs": {
+        "maturities": [
+          1,
+          3,
+          5,
+          7,
+          10
+        ],
+        "spreads": [
+          0.005,
+          0.007,
+          0.009,
+          0.01,
+          0.011
+        ],
+        "frequency": 4,
+        "recovery": 0.4,
+        "rate": 0.05
+      },
+      "expected": [
+        0.008281,
+        0.01341,
+        0.020771,
+        0.021855,
+        0.023772
+      ],
+      "tol": 1e-06
+    },
+    {
+      "id": "cds_option",
+      "ref": "Ch 25.6 Black's model: payer option, forward 120 bp, strike 100 bp, vol 50%, 1 year, annuity 3.5 (computed)",
+      "kind": "cds_option",
+      "inputs": {
+        "payer": true,
+        "forward": 0.012,
+        "strike": 0.01,
+        "vol": 0.5,
+        "expiry": 1.0,
+        "annuity": 3.5
+      },
+      "expected": 0.011588,
+      "tol": 1e-06
+    },
+    {
+      "id": "tranche_3_6_rho15",
+      "ref": "Ch 25.10 one-factor Gaussian copula: 125 names, hazard 1%, R 40%, r 3.5%, quarterly, 5 years, 3%-6% tranche, correlation 0.15 (computed, bp)",
+      "kind": "tranche_spread_bp",
+      "inputs": {
+        "pool": {
+          "names": 125,
+          "hazard": 0.01,
+          "recovery": 0.4
+        },
+        "terms": {
+          "maturity": 5.0,
+          "frequency": 4,
+          "quadrature_points": 64
+        },
+        "tranche": [
+          0.03,
+          0.06
+        ],
+        "correlation": 0.15,
+        "rate": 0.035
+      },
+      "expected": 474.34,
+      "tol": 0.005
+    },
+    {
+      "id": "tranche_6_9_rho15",
+      "ref": "Ch 25.10 one-factor Gaussian copula: 125 names, hazard 1%, R 40%, r 3.5%, quarterly, 5 years, 6%-9% tranche, correlation 0.15 (computed, bp)",
+      "kind": "tranche_spread_bp",
+      "inputs": {
+        "pool": {
+          "names": 125,
+          "hazard": 0.01,
+          "recovery": 0.4
+        },
+        "terms": {
+          "maturity": 5.0,
+          "frequency": 4,
+          "quadrature_points": 64
+        },
+        "tranche": [
+          0.06,
+          0.09
+        ],
+        "correlation": 0.15,
+        "rate": 0.035
+      },
+      "expected": 149.62,
+      "tol": 0.005
+    },
+    {
+      "id": "tranche_12_22_rho15",
+      "ref": "Ch 25.10 one-factor Gaussian copula: 125 names, hazard 1%, R 40%, r 3.5%, quarterly, 5 years, 12%-22% tranche, correlation 0.15 (computed, bp)",
+      "kind": "tranche_spread_bp",
+      "inputs": {
+        "pool": {
+          "names": 125,
+          "hazard": 0.01,
+          "recovery": 0.4
+        },
+        "terms": {
+          "maturity": 5.0,
+          "frequency": 4,
+          "quadrature_points": 64
+        },
+        "tranche": [
+          0.12,
+          0.22
+        ],
+        "correlation": 0.15,
+        "rate": 0.035
+      },
+      "expected": 7.7,
+      "tol": 0.005
+    },
+    {
+      "id": "tranche_3_6_rho30",
+      "ref": "Ch 25.10 one-factor Gaussian copula: 125 names, hazard 1%, R 40%, r 3.5%, quarterly, 5 years, 3%-6% tranche, correlation 0.3 (computed, bp)",
+      "kind": "tranche_spread_bp",
+      "inputs": {
+        "pool": {
+          "names": 125,
+          "hazard": 0.01,
+          "recovery": 0.4
+        },
+        "terms": {
+          "maturity": 5.0,
+          "frequency": 4,
+          "quadrature_points": 64
+        },
+        "tranche": [
+          0.03,
+          0.06
+        ],
+        "correlation": 0.3,
+        "rate": 0.035
+      },
+      "expected": 473.57,
+      "tol": 0.005
+    },
+    {
+      "id": "implied_correlation",
+      "ref": "Ch 25.11 implied correlation of the 3-6% tranche priced at correlation 0.2 is 0.2 (lowest root)",
+      "kind": "implied_correlation",
+      "inputs": {
+        "pool": {
+          "names": 125,
+          "hazard": 0.01,
+          "recovery": 0.4
+        },
+        "terms": {
+          "maturity": 5.0,
+          "frequency": 4,
+          "quadrature_points": 64
+        },
+        "tranche": [
+          0.03,
+          0.06
+        ],
+        "correlation": 0.2,
+        "rate": 0.035
+      },
+      "expected": 0.2,
+      "tol": 1e-08
+    },
+    {
+      "id": "first_to_default",
+      "ref": "Ch 25.9 first-to-default on 10 names, hazard 1%, R 40%, correlation 0.3, r 5%, 5 years, quarterly (Monte Carlo, 50000 paths, computed bp; tol about 3.5 standard errors so NumPy and mt19937_64 streams both pass)",
+      "kind": "nth_to_default_bp",
+      "inputs": {
+        "names": 10,
+        "nth": 1,
+        "hazard": 0.01,
+        "recovery": 0.4,
+        "correlation": 0.3,
+        "maturity": 5.0,
+        "frequency": 4,
+        "rate": 0.05,
+        "paths": 50000,
+        "seed": 1
+      },
+      "expected": 434.8,
+      "tol": 15.0
+    },
+    {
+      "id": "second_to_default",
+      "ref": "Ch 25.9 second-to-default, same basket (Monte Carlo, computed bp)",
+      "kind": "nth_to_default_bp",
+      "inputs": {
+        "names": 10,
+        "nth": 2,
+        "hazard": 0.01,
+        "recovery": 0.4,
+        "correlation": 0.3,
+        "maturity": 5.0,
+        "frequency": 4,
+        "rate": 0.05,
+        "paths": 50000,
+        "seed": 1
+      },
+      "expected": 135.8,
+      "tol": 9.0
+    }
+  ]
+}

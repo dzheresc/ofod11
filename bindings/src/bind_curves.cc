@@ -1,12 +1,16 @@
 // Copyright 2026 Denis Zhereshchin
 
 #include <nanobind/nanobind.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/vector.h>
 
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include "bindings.h"
 #include "ofod/curves/bond_bootstrap.h"
+#include "ofod/curves/credit_curve.h"
 #include "ofod/curves/swap_bootstrap.h"
 #include "ofod/curves/vol_surface.h"
 #include "ofod/curves/zero_curve.h"
@@ -127,6 +131,43 @@ void BindCurves(nb::module_& m) {
         return *std::move(curve);
       },
       nb::arg("quotes"));
+
+  // Chapter 24: hazard-rate credit curves.
+  using curves::CreditCurve;
+  nb::class_<CreditCurve>(m, "CreditCurve")
+      .def(
+          "__init__",
+          [](CreditCurve* self, std::vector<double> times,
+             std::vector<double> hazards) {
+            auto curve =
+                CreditCurve::Create(std::move(times), std::move(hazards));
+            if (!curve) throw nb::value_error("invalid credit curve");
+            new (self) CreditCurve(*std::move(curve));
+          },
+          nb::arg("times"), nb::arg("hazards"))
+      .def_static("flat", &CreditCurve::Flat, nb::arg("hazard"))
+      .def("survival_probability", &CreditCurve::SurvivalProbability,
+           nb::arg("t"))
+      .def(
+          "default_probability",
+          [](const CreditCurve& c, double t1, std::optional<double> t2) {
+            return t2 ? c.DefaultProbability(t1, *t2)
+                      : c.DefaultProbability(t1);
+          },
+          nb::arg("t1"), nb::arg("t2") = nb::none())
+      .def("hazard", &CreditCurve::Hazard, nb::arg("t"))
+      .def_prop_ro("times",
+                   [](const CreditCurve& c) {
+                     return std::vector<double>(c.times().begin(),
+                                                c.times().end());
+                   })
+      .def_prop_ro("hazards", [](const CreditCurve& c) {
+        return std::vector<double>(c.hazards().begin(), c.hazards().end());
+      });
+  m.def("hazard_from_spread", &curves::HazardFromSpread, nb::arg("spread"),
+        nb::arg("recovery"));
+  m.def("average_hazard", &curves::AverageHazard, nb::arg("cumulative_default"),
+        nb::arg("t"));
 }
 
 }  // namespace ofod::bindings
