@@ -1,0 +1,30 @@
+{
+  "chapter": 7,
+  "title": "Swaps",
+  "cases": [
+    {"id": "ex7_irs_fixed", "ref": "Interest rate swap example (9th/10th ed.): receive 8% semiannual, 1.25 years left", "kind": "swap_fixed_leg",
+     "inputs": {"swap": {"notional": 100, "fixed_rate": 0.08, "frequency": 2, "payment_times": [0.25, 0.75, 1.25], "next_floating_rate": 0.102},
+                "curve": {"times": [0.25, 0.75, 1.25], "rates": [0.10, 0.105, 0.11]}},
+     "expected": 98.24, "tol": 0.005},
+    {"id": "ex7_irs_floating", "ref": "Interest rate swap example: floating leg", "kind": "swap_floating_leg",
+     "inputs": {"swap": {"notional": 100, "fixed_rate": 0.08, "frequency": 2, "payment_times": [0.25, 0.75, 1.25], "next_floating_rate": 0.102},
+                "curve": {"times": [0.25, 0.75, 1.25], "rates": [0.10, 0.105, 0.11]}},
+     "expected": 102.51, "tol": 0.005},
+    {"id": "ex7_irs_value", "ref": "Interest rate swap example: value to the fixed receiver", "kind": "swap_value",
+     "inputs": {"swap": {"notional": 100, "fixed_rate": 0.08, "frequency": 2, "payment_times": [0.25, 0.75, 1.25], "next_floating_rate": 0.102},
+                "curve": {"times": [0.25, 0.75, 1.25], "rates": [0.10, 0.105, 0.11]}},
+     "expected": -4.27, "tol": 0.005},
+    {"id": "ex7_irs_value_fras", "ref": "Interest rate swap example: same value as FRAs", "kind": "swap_value_as_fras",
+     "inputs": {"swap": {"notional": 100, "fixed_rate": 0.08, "frequency": 2, "payment_times": [0.25, 0.75, 1.25], "next_floating_rate": 0.102},
+                "curve": {"times": [0.25, 0.75, 1.25], "rates": [0.10, 0.105, 0.11]}},
+     "expected": -4.27, "tol": 0.005},
+    {"id": "ex7_currency_swap", "ref": "Currency swap example (9th/10th ed.): receive 5% on 1,200m yen, pay 8% on $10m, spot 110", "kind": "currency_swap_value",
+     "inputs": {"swap": {"domestic_notional": 10, "domestic_rate": 0.08, "foreign_notional": 1200, "foreign_rate": 0.05,
+                         "frequency": 1, "payment_times": [1, 2, 3]},
+                "domestic_rate": 0.09, "foreign_rate": 0.04, "spot": 0.0090909090909},
+     "expected": 1.5430, "tol": 0.00005},
+    {"id": "s7_5_comparative_advantage", "ref": "Section 7.5, fixed 4.0% vs 5.2%, floating -0.1% vs +0.6%", "kind": "comparative_advantage",
+     "inputs": {"fixed_a": 0.040, "fixed_b": 0.052, "floating_spread_a": -0.001, "floating_spread_b": 0.006},
+     "expected": 0.005, "tol": 1e-12}
+  ]
+}

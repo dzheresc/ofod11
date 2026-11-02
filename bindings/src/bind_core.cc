@@ -8,18 +8,14 @@
 #include "ofod/core/date.h"
 
 namespace ofod::bindings {
-namespace {
 
 namespace nb = nanobind;
 
-// Converts a Python datetime.date (or anything with year/month/day).
 Date ToDate(const nb::handle& d) {
   return Date(nb::cast<int>(d.attr("year")),
               nb::cast<unsigned>(d.attr("month")),
               nb::cast<unsigned>(d.attr("day")));
 }
-
-}  // namespace
 
 void BindCore(nb::module_& m) {
   nb::enum_<Compounding::Kind>(m, "CompoundingKind")

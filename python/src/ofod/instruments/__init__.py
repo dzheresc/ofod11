@@ -11,13 +11,17 @@ from ofod.instruments.payoff import Position
 from ofod.instruments.payoff import PutPayoff
 from ofod.instruments.payoff import Side
 from ofod.instruments.payoff import sign
+from ofod.instruments.swap import CurrencySwap
+from ofod.instruments.swap import InterestRateSwap
 
 __all__ = [
     "Bond",
     "CallPayoff",
     "CashFlow",
+    "CurrencySwap",
     "ForwardPayoff",
     "Fra",
+    "InterestRateSwap",
     "Payoff",
     "Position",
     "PutPayoff",

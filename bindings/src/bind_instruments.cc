@@ -5,12 +5,15 @@
 #include <nanobind/stl/vector.h>
 
 #include <functional>
+#include <utility>
+#include <vector>
 
 #include "bindings.h"
 #include "ofod/instruments/bond.h"
 #include "ofod/instruments/cash_flow.h"
 #include "ofod/instruments/fra.h"
 #include "ofod/instruments/payoff.h"
+#include "ofod/instruments/swap.h"
 
 namespace ofod::bindings {
 
@@ -58,6 +61,49 @@ void BindInstruments(nb::module_& m) {
       .def_rw("fixed_rate", &Fra::fixed_rate)
       .def_rw("start", &Fra::start)
       .def_rw("end", &Fra::end);
+
+  using instruments::CurrencySwap;
+  using instruments::InterestRateSwap;
+  nb::class_<InterestRateSwap>(m, "InterestRateSwap")
+      .def(
+          "__init__",
+          [](InterestRateSwap* self, double notional, double fixed_rate,
+             int frequency, std::vector<double> payment_times,
+             double next_floating_rate) {
+            new (self)
+                InterestRateSwap{notional, fixed_rate, frequency,
+                                 std::move(payment_times), next_floating_rate};
+          },
+          nb::arg("notional") = 0.0, nb::arg("fixed_rate") = 0.0,
+          nb::arg("frequency") = 2,
+          nb::arg("payment_times") = std::vector<double>{},
+          nb::arg("next_floating_rate") = 0.0)
+      .def_rw("notional", &InterestRateSwap::notional)
+      .def_rw("fixed_rate", &InterestRateSwap::fixed_rate)
+      .def_rw("frequency", &InterestRateSwap::frequency)
+      .def_rw("payment_times", &InterestRateSwap::payment_times)
+      .def_rw("next_floating_rate", &InterestRateSwap::next_floating_rate);
+
+  nb::class_<CurrencySwap>(m, "CurrencySwap")
+      .def(
+          "__init__",
+          [](CurrencySwap* self, double domestic_notional, double domestic_rate,
+             double foreign_notional, double foreign_rate, int frequency,
+             std::vector<double> payment_times) {
+            new (self) CurrencySwap{
+                domestic_notional, domestic_rate, foreign_notional,
+                foreign_rate,      frequency,     std::move(payment_times)};
+          },
+          nb::arg("domestic_notional") = 0.0, nb::arg("domestic_rate") = 0.0,
+          nb::arg("foreign_notional") = 0.0, nb::arg("foreign_rate") = 0.0,
+          nb::arg("frequency") = 1,
+          nb::arg("payment_times") = std::vector<double>{})
+      .def_rw("domestic_notional", &CurrencySwap::domestic_notional)
+      .def_rw("domestic_rate", &CurrencySwap::domestic_rate)
+      .def_rw("foreign_notional", &CurrencySwap::foreign_notional)
+      .def_rw("foreign_rate", &CurrencySwap::foreign_rate)
+      .def_rw("frequency", &CurrencySwap::frequency)
+      .def_rw("payment_times", &CurrencySwap::payment_times);
 
   nb::class_<instruments::ForwardPayoff>(m, "ForwardPayoff")
       .def(nb::init<double>(), nb::arg("delivery_price"))

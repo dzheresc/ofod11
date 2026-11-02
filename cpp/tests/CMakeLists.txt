@@ -4,6 +4,11 @@ find_package(nlohmann_json 3 CONFIG REQUIRED)
 add_executable(ofod_tests
   core/compounding_test.cc
   core/date_test.cc
+  credit/tranche_test.cc
+  futures/futures_test.cc
+  risk/hedging_test.cc
+  stats/descriptive_test.cc
+  pricers/swap_pricer_test.cc
   curves/bond_bootstrap_test.cc
   curves/zero_curve_test.cc
   golden/golden_test.cc

@@ -1,9 +1,17 @@
 # One executable per chapter example; run with e.g. ./build/<preset>/chapters/ch04_interest_rates
 add_executable(ch01_introduction ch01_introduction/cpp/payoffs.cc)
+add_executable(ch02_futures_markets ch02_futures_markets/cpp/margin_account.cc)
+add_executable(ch03_hedging ch03_hedging/cpp/hedging.cc)
 add_executable(ch04_interest_rates ch04_interest_rates/cpp/interest_rates.cc)
 add_executable(ch05_forward_futures_prices
   ch05_forward_futures_prices/cpp/forward_prices.cc)
+add_executable(ch06_interest_rate_futures
+  ch06_interest_rate_futures/cpp/rate_futures.cc)
+add_executable(ch07_swaps ch07_swaps/cpp/swaps.cc)
+add_executable(ch08_securitization ch08_securitization/cpp/waterfall.cc)
 
-foreach(target ch01_introduction ch04_interest_rates ch05_forward_futures_prices)
+foreach(target ch01_introduction ch02_futures_markets ch03_hedging
+    ch04_interest_rates ch05_forward_futures_prices ch06_interest_rate_futures
+    ch07_swaps ch08_securitization)
   target_link_libraries(${target} PRIVATE ofod::ofod)
 endforeach()

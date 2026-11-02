@@ -5,7 +5,9 @@ bindings `ofod_cpp`. Both are checked against the same numbers.
 """
 
 from collections.abc import Iterator
+import datetime
 import json
+import math
 import os
 import pathlib
 import types
@@ -59,6 +61,146 @@ def _bond(lib: types.ModuleType, j: dict[str, Any]) -> Any:
         maturity=j["maturity"],
         frequency=j["frequency"],
     )
+
+
+def _margin_spec(lib: types.ModuleType, j: dict[str, Any]) -> Any:
+    return lib.futures.MarginSpec(
+        initial_margin=j["initial_margin"],
+        maintenance_margin=j["maintenance_margin"],
+        contract_size=j["contract_size"],
+        contracts=j["contracts"],
+        side=getattr(lib.instruments.Side, j["side"].upper()),
+    )
+
+
+def _date(j: list[int]) -> datetime.date:
+    return datetime.date(j[0], j[1], j[2])
+
+
+def _swap(lib: types.ModuleType, j: dict[str, Any]) -> Any:
+    return lib.instruments.InterestRateSwap(
+        notional=j["notional"],
+        fixed_rate=j["fixed_rate"],
+        frequency=j["frequency"],
+        payment_times=j["payment_times"],
+        next_floating_rate=j["next_floating_rate"],
+    )
+
+
+def _evaluate_m2(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 2, 3, 6, 7; returns None when `kind` is not one of them."""
+    f = lib.futures
+    p = lib.pricers
+    r = lib.risk
+    long = lib.instruments.Side.LONG
+    if kind in ("margin_balances", "margin_calls", "margin_cumulative_gain"):
+        days = f.simulate_margin_account(_margin_spec(lib, i), i["prices"])
+        if kind == "margin_cumulative_gain":
+            return days[-1].cumulative_gain
+        if kind == "margin_calls":
+            return [d.margin_call for d in days]
+        return [d.balance for d in days]
+    if kind == "min_variance_hedge_ratio":
+        return r.minimum_variance_hedge_ratio(
+            i["correlation"], i["spot_vol"], i["futures_vol"]
+        )
+    if kind == "optimal_contracts":
+        return r.optimal_contracts(
+            i["hedge_ratio"], i["exposure_units"], i["contract_units"]
+        )
+    if kind == "beta_hedge_contracts":
+        return r.beta_hedge_contracts(
+            i["beta"], i["portfolio_value"], i["futures_value"]
+        )
+    if kind == "change_beta_contracts":
+        return r.change_beta_contracts(
+            i["beta"],
+            i["target_beta"],
+            i["portfolio_value"],
+            i["futures_value"],
+        )
+    if kind == "parse_thirty_seconds":
+        return f.parse_thirty_seconds(i["quote"])
+    if kind == "treasury_cash_price":
+        accrued = f.accrued_interest(
+            _date(i["last_coupon"]),
+            _date(i["next_coupon"]),
+            _date(i["settlement"]),
+            i["coupon"],
+        )
+        return f.cash_price(f.parse_thirty_seconds(i["quoted"]), accrued)
+    if kind == "conversion_factor":
+        return f.conversion_factor(i["coupon_rate"], i["years"])
+    if kind == "cheapest_to_deliver_costs":
+        return [
+            f.find_cheapest_to_deliver(
+                i["futures"], [f.DeliverableBond(b[0], b[1])]
+            ).cost
+            for b in i["bonds"]
+        ]
+    if kind == "treasury_futures_quote":
+        rate = i["rate"]
+        cash = f.cash_price(i["quoted_bond"], i["accrued_now"])
+        coupons_pv = i["coupon"] * math.exp(-rate * i["coupon_time"])
+        return f.treasury_futures_quote(
+            cash,
+            coupons_pv,
+            rate,
+            i["t"],
+            i["accrued_at_delivery"],
+            i["conversion_factor"],
+        )
+    if kind == "convexity_adjustment":
+        return f.convexity_adjustment(i["sigma"], i["t1"], i["t2"])
+    if kind == "duration_hedge_contracts":
+        return f.duration_hedge_contracts(
+            i["portfolio_value"],
+            i["portfolio_duration"],
+            i["futures_value"],
+            i["futures_duration"],
+        )
+    if kind == "swap_fixed_leg":
+        return p.fixed_leg_bond_value(
+            _swap(lib, i["swap"]), _curve(lib, i["curve"])
+        )
+    if kind == "swap_floating_leg":
+        return p.floating_leg_bond_value(
+            _swap(lib, i["swap"]), _curve(lib, i["curve"])
+        )
+    if kind == "swap_value":
+        return p.swap_value(
+            _swap(lib, i["swap"]), _curve(lib, i["curve"]), long
+        )
+    if kind == "swap_value_as_fras":
+        return p.swap_value_as_fras(
+            _swap(lib, i["swap"]), _curve(lib, i["curve"]), long
+        )
+    if kind == "currency_swap_value":
+        j = i["swap"]
+        swap = lib.instruments.CurrencySwap(
+            domestic_notional=j["domestic_notional"],
+            domestic_rate=j["domestic_rate"],
+            foreign_notional=j["foreign_notional"],
+            foreign_rate=j["foreign_rate"],
+            frequency=j["frequency"],
+            payment_times=j["payment_times"],
+        )
+        flat = lib.curves.ZeroCurve.flat
+        return p.currency_swap_value(
+            swap,
+            flat(i["domestic_rate"]),
+            flat(i["foreign_rate"]),
+            i["spot"],
+            long,
+        )
+    if kind == "comparative_advantage":
+        return p.comparative_advantage_gain(
+            i["fixed_a"],
+            i["fixed_b"],
+            i["floating_spread_a"],
+            i["floating_spread_b"],
+        )
+    return None
 
 
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
@@ -139,6 +281,9 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         return p.forward_contract_value(
             f, i["delivery_price"], i["rate"], i["t"], lib.instruments.Side.LONG
         )
+    result = _evaluate_m2(lib, kind, i)
+    if result is not None:
+        return result
     raise KeyError(f"unknown golden case kind: {kind}")
 
 

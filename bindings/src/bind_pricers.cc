@@ -9,6 +9,7 @@
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/forward_pricer.h"
 #include "ofod/pricers/fra_pricer.h"
+#include "ofod/pricers/swap_pricer.h"
 
 namespace ofod::bindings {
 
@@ -70,6 +71,28 @@ void BindPricers(nb::module_& m) {
   m.def("detect_forward_arbitrage", &pricers::DetectForwardArbitrage,
         nb::arg("quoted_forward"), nb::arg("theoretical"),
         nb::arg("tolerance") = 1e-9);
+
+  m.def("fixed_leg_bond_value", &pricers::FixedLegBondValue, nb::arg("s"),
+        nb::arg("curve"));
+  m.def("floating_leg_bond_value", &pricers::FloatingLegBondValue, nb::arg("s"),
+        nb::arg("curve"));
+  m.def("swap_value", &pricers::SwapValue, nb::arg("s"), nb::arg("curve"),
+        nb::arg("side"));
+  m.def("swap_value_as_fras", &pricers::SwapValueAsFras, nb::arg("s"),
+        nb::arg("curve"), nb::arg("side"));
+  m.def(
+      "par_swap_rate",
+      [](const std::vector<double>& payment_times, int frequency,
+         const curves::ZeroCurve& curve) {
+        return pricers::ParSwapRate(payment_times, frequency, curve);
+      },
+      nb::arg("payment_times"), nb::arg("frequency"), nb::arg("curve"));
+  m.def("currency_swap_value", &pricers::CurrencySwapValue, nb::arg("s"),
+        nb::arg("domestic"), nb::arg("foreign"), nb::arg("spot"),
+        nb::arg("side"));
+  m.def("comparative_advantage_gain", &pricers::ComparativeAdvantageGain,
+        nb::arg("fixed_a"), nb::arg("fixed_b"), nb::arg("floating_spread_a"),
+        nb::arg("floating_spread_b"));
 }
 
 }  // namespace ofod::bindings

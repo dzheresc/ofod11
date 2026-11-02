@@ -9,7 +9,17 @@ import pytest
 import ofod
 import ofod_cpp
 
-_SUBMODULES = ("core", "curves", "instruments", "math", "pricers")
+_SUBMODULES = (
+    "core",
+    "credit",
+    "curves",
+    "futures",
+    "instruments",
+    "math",
+    "pricers",
+    "risk",
+    "stats",
+)
 # Typing-only names (Protocols) have no runtime counterpart in C++.
 _TYPING_ONLY = {"Payoff"}
 

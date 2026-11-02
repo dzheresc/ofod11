@@ -1,5 +1,13 @@
 add_library(ofod
   src/core/compounding.cc
+  src/credit/tranche.cc
+  src/futures/margin.cc
+  src/futures/rate_futures.cc
+  src/futures/treasury.cc
+  src/risk/hedging.cc
+  src/stats/descriptive.cc
+  src/curves/swap_bootstrap.cc
+  src/pricers/swap_pricer.cc
   src/core/date.cc
   src/curves/bond_bootstrap.cc
   src/curves/zero_curve.cc

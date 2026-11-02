@@ -1,0 +1,23 @@
+{
+  "chapter": 2,
+  "title": "Futures markets and central counterparties",
+  "cases": [
+    {"id": "t2_1_balances", "ref": "Table 2.1, gold futures margin account (long 2 contracts of 100 oz)", "kind": "margin_balances",
+     "inputs": {"initial_margin": 6000, "maintenance_margin": 4500, "contract_size": 100, "contracts": 2, "side": "long",
+                "prices": [1250.00, 1241.00, 1238.30, 1244.60, 1241.30, 1240.10, 1236.20, 1229.90, 1230.80,
+                           1225.40, 1228.10, 1211.00, 1211.00, 1214.30, 1216.10, 1223.00, 1226.90]},
+     "expected": [12000, 10200, 9660, 10920, 10260, 10020, 9240, 7980, 12180, 11100, 11640, 8220, 12000, 12660, 13020, 14400, 15180],
+     "tol": 0.005},
+    {"id": "t2_1_margin_calls", "ref": "Table 2.1, margin calls", "kind": "margin_calls",
+     "inputs": {"initial_margin": 6000, "maintenance_margin": 4500, "contract_size": 100, "contracts": 2, "side": "long",
+                "prices": [1250.00, 1241.00, 1238.30, 1244.60, 1241.30, 1240.10, 1236.20, 1229.90, 1230.80,
+                           1225.40, 1228.10, 1211.00, 1211.00, 1214.30, 1216.10, 1223.00, 1226.90]},
+     "expected": [0, 0, 0, 0, 0, 0, 0, 4020, 0, 0, 0, 3780, 0, 0, 0, 0, 0],
+     "tol": 0.005},
+    {"id": "t2_1_cumulative", "ref": "Table 2.1, cumulative loss at day 16", "kind": "margin_cumulative_gain",
+     "inputs": {"initial_margin": 6000, "maintenance_margin": 4500, "contract_size": 100, "contracts": 2, "side": "long",
+                "prices": [1250.00, 1241.00, 1238.30, 1244.60, 1241.30, 1240.10, 1236.20, 1229.90, 1230.80,
+                           1225.40, 1228.10, 1211.00, 1211.00, 1214.30, 1216.10, 1223.00, 1226.90]},
+     "expected": -4620, "tol": 0.005}
+  ]
+}

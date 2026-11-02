@@ -7,6 +7,7 @@
 
 #include "bindings.h"
 #include "ofod/curves/bond_bootstrap.h"
+#include "ofod/curves/swap_bootstrap.h"
 #include "ofod/curves/zero_curve.h"
 
 namespace ofod::bindings {
@@ -60,6 +61,30 @@ void BindCurves(nb::module_& m) {
         if (!curve) {
           throw nb::value_error(
               "bond maturities must be distinct and every bond repriceable");
+        }
+        return *std::move(curve);
+      },
+      nb::arg("quotes"));
+
+  using curves::SwapQuote;
+  nb::class_<SwapQuote>(m, "SwapQuote")
+      .def(
+          "__init__",
+          [](SwapQuote* self, double maturity, double par_rate, int frequency) {
+            new (self) SwapQuote{maturity, par_rate, frequency};
+          },
+          nb::arg("maturity") = 0.0, nb::arg("par_rate") = 0.0,
+          nb::arg("frequency") = 1)
+      .def_rw("maturity", &SwapQuote::maturity)
+      .def_rw("par_rate", &SwapQuote::par_rate)
+      .def_rw("frequency", &SwapQuote::frequency);
+  m.def(
+      "bootstrap_from_swaps",
+      [](const std::vector<SwapQuote>& quotes) {
+        auto curve = curves::BootstrapFromSwaps(quotes);
+        if (!curve) {
+          throw nb::value_error(
+              "swap maturities must be distinct and every swap repriceable");
         }
         return *std::move(curve);
       },
