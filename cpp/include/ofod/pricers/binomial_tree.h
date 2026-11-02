@@ -12,7 +12,9 @@
 
 #include <concepts>
 #include <optional>
+#include <span>
 
+#include "ofod/instruments/cash_flow.h"
 #include "ofod/instruments/option.h"
 
 namespace ofod::pricers {
@@ -89,6 +91,27 @@ template <TreeSchemePolicy S>
 [[nodiscard]] std::optional<TreeResult> PriceBinomial(
     const instruments::VanillaOption& option, const TreeMarket& market,
     int steps, TreeScheme scheme);
+
+// CRR tree for a stock paying known cash dividends (Ch 21.3): the tree is
+// built for S* = S - PV(dividends) with volatility sigma, and the PV of the
+// dividends still to be paid is added back at each node. `market.yield`
+// must be zero.
+[[nodiscard]] std::optional<TreeResult> PriceBinomialWithDividends(
+    const instruments::VanillaOption& option, const TreeMarket& market,
+    int steps, std::span<const instruments::CashFlow> dividends);
+
+// Control variate on a CRR tree (Ch 21.3): American tree price plus the
+// BSM European price minus the European tree price.
+[[nodiscard]] std::optional<double> ControlVariateAmericanPrice(
+    const instruments::VanillaOption& option, const TreeMarket& market,
+    int steps);
+
+// Trinomial tree (Ch 21.4): u = e^{sigma sqrt(3 dt)}, d = 1/u, p_m = 2/3,
+// p_u and p_d = 1/6 +/- (r - q - sigma^2/2) sqrt(dt / (12 sigma^2)).
+// Returns std::nullopt if steps < 1 or a probability is negative.
+[[nodiscard]] std::optional<TreeResult> PriceTrinomial(
+    const instruments::VanillaOption& option, const TreeMarket& market,
+    int steps);
 
 }  // namespace ofod::pricers
 

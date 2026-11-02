@@ -393,6 +393,66 @@ def _evaluate_m4(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _market(lib: types.ModuleType, m: dict[str, Any]) -> Any:
+    return lib.pricers.TreeMarket(
+        spot=m["spot"],
+        rate=m["rate"],
+        yield_=m["yield"],
+        volatility=m["volatility"],
+    )
+
+
+def _evaluate_m5(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapter 21; returns None when `kind` is not one of its kinds."""
+    p = lib.pricers
+    if kind == "control_variate_american":
+        return p.control_variate_american_price(
+            _option(lib, i["option"]), _market(lib, i["market"]), i["steps"]
+        )
+    if kind == "binomial_with_dividends":
+        return p.price_binomial_with_dividends(
+            _option(lib, i["option"]),
+            _market(lib, i["market"]),
+            i["steps"],
+            _flows(lib, i["dividends"]),
+        ).price
+    if kind == "trinomial_price":
+        return p.price_trinomial(
+            _option(lib, i["option"]), _market(lib, i["market"]), i["steps"]
+        ).price
+    if kind == "finite_difference":
+        g = i["grid"]
+        grid = p.FdGrid(
+            s_min=g["s_min"],
+            s_max=g["s_max"],
+            price_steps=g["price_steps"],
+            time_steps=g["time_steps"],
+            log_space=g["log_space"],
+        )
+        return p.price_finite_difference(
+            _option(lib, i["option"]),
+            _market(lib, i["market"]),
+            grid,
+            getattr(p.FdScheme, i["scheme"].upper()),
+            getattr(p.AmericanSolver, i["american"].upper()),
+        )
+    if kind == "mc_european":
+        options = p.McOptions(
+            paths=i["paths"],
+            seed=i["seed"],
+            method=getattr(p.VarianceReduction, i["method"].upper()),
+        )
+        return p.monte_carlo_european(
+            _option(lib, i["option"]), _market(lib, i["market"]), options
+        ).price
+    if kind == "sobol_points":
+        seq = lib.random.Sobol(i["dimensions"])
+        return [x for _ in range(i["count"]) for x in seq.next()]
+    if kind == "norm_inv":
+        return lib.math.norm_inv(i["p"])
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -471,7 +531,7 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         return p.forward_contract_value(
             f, i["delivery_price"], i["rate"], i["t"], lib.instruments.Side.LONG
         )
-    for extra in (_evaluate_m2, _evaluate_m3, _evaluate_m4):
+    for extra in (_evaluate_m2, _evaluate_m3, _evaluate_m4, _evaluate_m5):
         result = extra(lib, kind, i)
         if result is not None:
             return result

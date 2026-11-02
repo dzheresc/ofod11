@@ -1,0 +1,244 @@
+{
+  "chapter": 21,
+  "cases": [
+    {
+      "id": "european_tree",
+      "ref": "Ch 21.3 control variate: European put on the 5-step tree",
+      "kind": "binomial_price",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "european",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 50.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "steps": 5,
+        "scheme": "crr"
+      },
+      "expected": 4.32,
+      "tol": 0.005
+    },
+    {
+      "id": "control_variate",
+      "ref": "Ch 21.3 control variate: 4.49 + 4.08 - 4.32",
+      "kind": "control_variate_american",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 50.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "steps": 5
+      },
+      "expected": 4.25,
+      "tol": 0.006
+    },
+    {
+      "id": "dividend_tree",
+      "ref": "Ch 21.3: S0=52, K=50, r=10%, sigma=40%, T=5m, dividend 2.06 at 3.5m",
+      "kind": "binomial_with_dividends",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 52.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "steps": 5,
+        "dividends": [
+          [
+            0.2916666666667,
+            2.06
+          ]
+        ]
+      },
+      "expected": 4.44,
+      "tol": 0.005
+    },
+    {
+      "id": "trinomial_converges",
+      "ref": "Ch 21.4 trinomial tree, 500 steps (true value about 4.28)",
+      "kind": "trinomial_price",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 50.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "steps": 500
+      },
+      "expected": 4.28,
+      "tol": 0.005
+    },
+    {
+      "id": "fd_implicit",
+      "ref": "Table 21.5: implicit FD, dS=5, dt=0.5m, Hull's projection",
+      "kind": "finite_difference",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 50.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "grid": {
+          "s_min": 0.0,
+          "s_max": 100.0,
+          "price_steps": 20,
+          "time_steps": 10,
+          "log_space": false
+        },
+        "scheme": "implicit",
+        "american": "projection"
+      },
+      "expected": 4.07,
+      "tol": 0.005
+    },
+    {
+      "id": "fd_explicit",
+      "ref": "Table 21.6: explicit FD, dS=5, dt=0.5m",
+      "kind": "finite_difference",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 50.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "grid": {
+          "s_min": 0.0,
+          "s_max": 100.0,
+          "price_steps": 20,
+          "time_steps": 10,
+          "log_space": false
+        },
+        "scheme": "explicit",
+        "american": "psor"
+      },
+      "expected": 4.26,
+      "tol": 0.005
+    },
+    {
+      "id": "fd_crank_nicolson_fine",
+      "ref": "Ch 21.8: Crank-Nicolson with PSOR on a fine log grid (true value about 4.28)",
+      "kind": "finite_difference",
+      "inputs": {
+        "option": {
+          "type": "put",
+          "exercise": "american",
+          "strike": 50.0,
+          "maturity": 0.4166666666667
+        },
+        "market": {
+          "spot": 50.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.4
+        },
+        "grid": {
+          "s_min": 1.0,
+          "s_max": 500.0,
+          "price_steps": 400,
+          "time_steps": 400,
+          "log_space": true
+        },
+        "scheme": "crank_nicolson",
+        "american": "psor"
+      },
+      "expected": 4.28,
+      "tol": 0.005
+    },
+    {
+      "id": "mc_antithetic",
+      "ref": "Ch 21.7: antithetic MC of the Example 15.6 call (statistical)",
+      "kind": "mc_european",
+      "inputs": {
+        "option": {
+          "type": "call",
+          "exercise": "european",
+          "strike": 40.0,
+          "maturity": 0.5
+        },
+        "market": {
+          "spot": 42.0,
+          "rate": 0.1,
+          "yield": 0.0,
+          "volatility": 0.2
+        },
+        "paths": 100000,
+        "seed": 7,
+        "method": "antithetic"
+      },
+      "expected": 4.7594,
+      "tol": 0.03
+    },
+    {
+      "id": "sobol_points",
+      "ref": "Ch 21.7 Sobol sequence, first four 2-D points",
+      "kind": "sobol_points",
+      "inputs": {
+        "dimensions": 2,
+        "count": 4
+      },
+      "expected": [
+        0.5,
+        0.5,
+        0.75,
+        0.25,
+        0.25,
+        0.75,
+        0.375,
+        0.375
+      ],
+      "tol": 0.0
+    },
+    {
+      "id": "norm_inv",
+      "ref": "Inverse normal: N^-1(0.975)",
+      "kind": "norm_inv",
+      "inputs": {
+        "p": 0.975
+      },
+      "expected": 1.959963984540054,
+      "tol": 1e-12
+    }
+  ]
+}

@@ -3,6 +3,8 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/vector.h>
 
+#include <cstdint>
+#include <span>
 #include <vector>
 
 #include "bindings.h"
@@ -10,8 +12,10 @@
 #include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
+#include "ofod/pricers/finite_difference.h"
 #include "ofod/pricers/forward_pricer.h"
 #include "ofod/pricers/fra_pricer.h"
+#include "ofod/pricers/monte_carlo.h"
 #include "ofod/pricers/swap_pricer.h"
 
 namespace ofod::bindings {
@@ -248,6 +252,147 @@ void BindPricers(nb::module_& m) {
   m.def("warrant_price", &pricers::WarrantPrice, nb::arg("spot"),
         nb::arg("strike"), nb::arg("rate"), nb::arg("volatility"), nb::arg("t"),
         nb::arg("shares"), nb::arg("warrants"));
+
+  // Chapter 21: trees with dividends, control variate, trinomial.
+  m.def(
+      "price_binomial_with_dividends",
+      [](const instruments::VanillaOption& option, const TreeMarket& market,
+         int steps, const std::vector<CashFlow>& dividends) {
+        const auto r = pricers::PriceBinomialWithDividends(option, market,
+                                                           steps, dividends);
+        if (!r) throw nb::value_error("need steps >= 1 and a zero yield");
+        return *r;
+      },
+      nb::arg("option"), nb::arg("market"), nb::arg("steps"),
+      nb::arg("dividends"));
+  m.def(
+      "control_variate_american_price",
+      [](const instruments::VanillaOption& option, const TreeMarket& market,
+         int steps) {
+        const auto r =
+            pricers::ControlVariateAmericanPrice(option, market, steps);
+        if (!r) throw nb::value_error(kBadTree);
+        return *r;
+      },
+      nb::arg("option"), nb::arg("market"), nb::arg("steps"));
+  m.def(
+      "price_trinomial",
+      [](const instruments::VanillaOption& option, const TreeMarket& market,
+         int steps) {
+        const auto r = pricers::PriceTrinomial(option, market, steps);
+        if (!r) {
+          throw nb::value_error(
+              "need steps >= 1, a positive volatility and non-negative "
+              "probabilities");
+        }
+        return *r;
+      },
+      nb::arg("option"), nb::arg("market"), nb::arg("steps"));
+
+  // Monte Carlo.
+  using pricers::McOptions;
+  using pricers::McResult;
+  using pricers::VarianceReduction;
+  nb::enum_<VarianceReduction>(m, "VarianceReduction")
+      .value("NONE", VarianceReduction::kNone)
+      .value("ANTITHETIC", VarianceReduction::kAntithetic)
+      .value("CONTROL_VARIATE", VarianceReduction::kControlVariate)
+      .value("IMPORTANCE_SAMPLING", VarianceReduction::kImportanceSampling)
+      .value("STRATIFIED", VarianceReduction::kStratified)
+      .value("MOMENT_MATCHING", VarianceReduction::kMomentMatching)
+      .value("QUASI_RANDOM", VarianceReduction::kQuasiRandom);
+  nb::class_<McOptions>(m, "McOptions")
+      .def(
+          "__init__",
+          [](McOptions* self, int paths, std::uint64_t seed,
+             VarianceReduction method, int threads) {
+            new (self) McOptions{paths, seed, method, threads};
+          },
+          nb::arg("paths") = 100'000, nb::arg("seed") = 1,
+          nb::arg("method") = VarianceReduction::kNone, nb::arg("threads") = 1)
+      .def_rw("paths", &McOptions::paths)
+      .def_rw("seed", &McOptions::seed)
+      .def_rw("method", &McOptions::method)
+      .def_rw("threads", &McOptions::threads);
+  nb::class_<McResult>(m, "McResult")
+      .def(nb::init<double, double, int>(), nb::arg("price"),
+           nb::arg("std_error"), nb::arg("paths"))
+      .def_rw("price", &McResult::price)
+      .def_rw("std_error", &McResult::std_error)
+      .def_rw("paths", &McResult::paths);
+  m.attr("CHUNK_PATHS") = pricers::kChunkPaths;
+  m.def("mix_seed", &pricers::MixSeed, nb::arg("seed"), nb::arg("chunk"));
+  m.def(
+      "monte_carlo_european",
+      [](const instruments::VanillaOption& option, const TreeMarket& market,
+         const McOptions& options) {
+        const auto r = pricers::MonteCarloEuropean(option, market, options);
+        if (!r) {
+          throw nb::value_error("need a European option and at least 32 paths");
+        }
+        return *r;
+      },
+      nb::arg("option"), nb::arg("market"), nb::arg("options"));
+  m.def(
+      "simulate_gbm_paths",
+      [](const TreeMarket& market, double t, int steps, nb::callable payoff,
+         McOptions options) {
+        // The payoff is Python code, so it runs on this thread with the GIL;
+        // results do not depend on the thread count anyway.
+        options.threads = 1;
+        auto wrapped = [&payoff](std::span<const double> path) {
+          return nb::cast<double>(
+              payoff(std::vector<double>(path.begin(), path.end())));
+        };
+        const auto r =
+            pricers::SimulateGbmPaths(market, t, steps, wrapped, options);
+        if (!r) {
+          throw nb::value_error(
+              "need steps >= 1, paths >= 2, threads >= 1 and NONE or "
+              "ANTITHETIC");
+        }
+        return *r;
+      },
+      nb::arg("market"), nb::arg("t"), nb::arg("steps"), nb::arg("payoff"),
+      nb::arg("options"));
+
+  // Finite differences.
+  using pricers::AmericanSolver;
+  using pricers::FdGrid;
+  using pricers::FdScheme;
+  nb::enum_<FdScheme>(m, "FdScheme")
+      .value("EXPLICIT", FdScheme::kExplicit)
+      .value("IMPLICIT", FdScheme::kImplicit)
+      .value("CRANK_NICOLSON", FdScheme::kCrankNicolson);
+  nb::enum_<AmericanSolver>(m, "AmericanSolver")
+      .value("PSOR", AmericanSolver::kPsor)
+      .value("PROJECTION", AmericanSolver::kProjection);
+  nb::class_<FdGrid>(m, "FdGrid")
+      .def(
+          "__init__",
+          [](FdGrid* self, double s_min, double s_max, int price_steps,
+             int time_steps, bool log_space) {
+            new (self) FdGrid{s_min, s_max, price_steps, time_steps, log_space};
+          },
+          nb::arg("s_min") = 0.0, nb::arg("s_max") = 0.0,
+          nb::arg("price_steps") = 100, nb::arg("time_steps") = 100,
+          nb::arg("log_space") = false)
+      .def_rw("s_min", &FdGrid::s_min)
+      .def_rw("s_max", &FdGrid::s_max)
+      .def_rw("price_steps", &FdGrid::price_steps)
+      .def_rw("time_steps", &FdGrid::time_steps)
+      .def_rw("log_space", &FdGrid::log_space);
+  m.def(
+      "price_finite_difference",
+      [](const instruments::VanillaOption& option, const TreeMarket& market,
+         const FdGrid& grid, FdScheme scheme, AmericanSolver american) {
+        const auto v = pricers::PriceFiniteDifference(option, market, grid,
+                                                      scheme, american);
+        if (!v) throw nb::value_error("invalid finite difference grid");
+        return *v;
+      },
+      nb::arg("option"), nb::arg("market"), nb::arg("grid"), nb::arg("scheme"),
+      nb::arg("american") = AmericanSolver::kPsor);
 }
 
 }  // namespace ofod::bindings
