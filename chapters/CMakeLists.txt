@@ -9,6 +9,7 @@ add_executable(ch06_interest_rate_futures
   ch06_interest_rate_futures/cpp/rate_futures.cc)
 add_executable(ch07_swaps ch07_swaps/cpp/swaps.cc)
 add_executable(ch08_securitization ch08_securitization/cpp/waterfall.cc)
+add_executable(ch09_xva ch09_xva/cpp/xva.cc)
 add_executable(ch10_options_markets ch10_options_markets/cpp/options_markets.cc)
 add_executable(ch11_option_properties ch11_option_properties/cpp/bounds.cc)
 add_executable(ch12_trading_strategies ch12_trading_strategies/cpp/strategies.cc)
@@ -26,14 +27,18 @@ add_executable(ch21_numerical_procedures
 add_executable(ch22_var_es ch22_var_es/cpp/var.cc)
 add_executable(ch23_volatility_correlation
   ch23_volatility_correlation/cpp/volatility.cc)
+add_executable(ch24_credit_risk ch24_credit_risk/cpp/credit.cc)
+add_executable(ch25_credit_derivatives ch25_credit_derivatives/cpp/cds.cc)
 
 foreach(target ch01_introduction ch02_futures_markets ch03_hedging
     ch04_interest_rates ch05_forward_futures_prices ch06_interest_rate_futures
-    ch07_swaps ch08_securitization ch10_options_markets ch11_option_properties
+    ch07_swaps ch08_securitization ch09_xva ch10_options_markets
+    ch11_option_properties
     ch12_trading_strategies ch13_binomial_trees ch14_wiener_processes
     ch15_black_scholes ch16_employee_stock_options ch17_index_currency_options
     ch18_futures_options ch19_greek_letters ch20_volatility_smiles
-    ch21_numerical_procedures ch22_var_es ch23_volatility_correlation)
+    ch21_numerical_procedures ch22_var_es ch23_volatility_correlation
+    ch24_credit_risk ch25_credit_derivatives)
   target_link_libraries(${target} PRIVATE ofod::ofod)
 endforeach()
 

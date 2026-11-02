@@ -488,3 +488,159 @@ def test_pca_and_mc_var_agree() -> None:
         ofod_cpp.risk.monte_carlo_var(
             lambda dx: 0.0, [[1.0, 2.0], [2.0, 1.0]], 0.99, 1000, 1
         )
+
+
+@given(
+    a=st.floats(-4.0, 4.0),
+    b=st.floats(-4.0, 4.0),
+    rho=st.floats(-0.999, 0.999),
+)
+def test_bivariate_normal_identical(a: float, b: float, rho: float) -> None:
+    assert ofod_cpp.math.bivariate_norm_cdf(a, b, rho) == pytest.approx(
+        ofod.math.bivariate_norm_cdf(a, b, rho), rel=1e-12, abs=1e-15
+    )
+
+
+def test_quadrature_and_credit_curve_identical() -> None:
+    a, b = (
+        ofod.math.gauss_hermite_normal(32),
+        ofod_cpp.math.gauss_hermite_normal(32),
+    )
+    assert b.nodes == pytest.approx(a.nodes, rel=1e-13, abs=1e-14)
+    assert b.weights == pytest.approx(a.weights, rel=1e-11, abs=1e-30)
+    args = ([1.0, 3.0, 5.0], [0.01, 0.02, 0.015])
+    py, cpp = ofod.curves.CreditCurve(*args), ofod_cpp.curves.CreditCurve(*args)
+    for t in (0.5, 2.0, 4.0, 8.0):
+        assert cpp.survival_probability(t) == pytest.approx(
+            py.survival_probability(t), rel=1e-15
+        )
+        assert cpp.default_probability(t) == pytest.approx(
+            py.default_probability(t), rel=1e-13
+        )
+        assert cpp.default_probability(t, t + 1) == pytest.approx(
+            py.default_probability(t, t + 1), rel=1e-13
+        )
+    with pytest.raises(ValueError):
+        ofod_cpp.curves.CreditCurve([2.0, 1.0], [0.01, 0.01])
+    with pytest.raises(ValueError):
+        ofod_cpp.math.gauss_hermite(0)
+
+
+def test_default_models_identical() -> None:
+    a = ofod.credit.merton_solve(3.0, 0.8, 10.0, 0.05, 1.0)
+    b = ofod_cpp.credit.merton_solve(3.0, 0.8, 10.0, 0.05, 1.0)
+    assert b.asset_value == pytest.approx(a.asset_value, rel=1e-10)
+    assert b.default_probability == pytest.approx(
+        a.default_probability, rel=1e-9
+    )
+    for lib in (ofod, ofod_cpp):
+        with pytest.raises(ValueError):
+            lib.credit.merton_solve(3.0, 0.8, -10.0, 0.05, 1.0)
+    for f, args in [
+        ("wcdr", (0.02, 0.1, 0.999)),
+        ("vasicek_credit_loss", (100.0, 0.02, 0.4, 0.1, 0.999)),
+        ("joint_default_probability", (0.01, 0.02, 0.3)),
+        ("conditional_default_probability", (0.03, 0.2, -1.5)),
+    ]:
+        assert getattr(ofod_cpp.credit, f)(*args) == pytest.approx(
+            getattr(ofod.credit, f)(*args), rel=1e-12
+        )
+
+
+def test_cds_identical() -> None:
+    mats, spreads = [1.0, 3.0, 5.0], [0.006, 0.009, 0.012]
+    curves = [
+        lib.credit.bootstrap_credit_curve(
+            mats, spreads, 4, 0.4, lib.curves.ZeroCurve.flat(0.04)
+        )
+        for lib in (ofod, ofod_cpp)
+    ]
+    assert curves[1].hazards == pytest.approx(curves[0].hazards, rel=1e-10)
+    values = [
+        lib.credit.cds_upfront(
+            lib.credit.CdsTerms(5.0, 4, 0.4),
+            0.01,
+            lib.curves.CreditCurve.flat(0.03),
+            lib.curves.ZeroCurve.flat(0.04),
+        )
+        for lib in (ofod, ofod_cpp)
+    ]
+    assert values[1] == pytest.approx(values[0], rel=1e-13)
+    assert ofod_cpp.credit.cds_option_price(
+        False, 0.012, 0.01, 0.5, 1.0, 3.5
+    ) == pytest.approx(
+        ofod.credit.cds_option_price(False, 0.012, 0.01, 0.5, 1.0, 3.5)
+    )
+    with pytest.raises(ValueError):
+        ofod_cpp.credit.cds_par_spread(
+            ofod_cpp.credit.CdsTerms(0.0),
+            ofod_cpp.curves.CreditCurve.flat(0.01),
+            ofod_cpp.curves.ZeroCurve.flat(0.01),
+        )
+
+
+def test_copula_identical() -> None:
+    p = [0.1, 0.2, 0.05, 0.4]
+    assert ofod_cpp.credit.default_count_distribution(p) == pytest.approx(
+        ofod.credit.default_count_distribution(p), rel=1e-14
+    )
+    spreads, rhos = [], []
+    for lib in (ofod, ofod_cpp):
+        c = lib.credit
+        t, pool = c.Tranche(0.03, 0.07), c.CdoPool(100, 0.012, 0.4)
+        terms, z = c.CdoTerms(5.0, 4, 32), lib.curves.ZeroCurve.flat(0.03)
+        spreads.append(c.tranche_spread(t, pool, 0.25, terms, z))
+        rhos.append(c.implied_tranche_correlation(t, pool, 0.02, terms, z))
+    assert spreads[1] == pytest.approx(spreads[0], rel=1e-10)
+    assert rhos[1] == pytest.approx(rhos[0], abs=1e-9)
+    results = [
+        lib.credit.nth_to_default_spread(
+            lib.credit.BasketTerms(), 0.05, 40000, 5
+        )
+        for lib in (ofod, ofod_cpp)
+    ]
+    gap = abs(results[1].spread - results[0].spread)
+    assert gap < 4.0 * math.hypot(results[0].std_error, results[1].std_error)
+    with pytest.raises(ValueError):
+        ofod_cpp.credit.nth_to_default_spread(
+            ofod_cpp.credit.BasketTerms(nth=0), 0.05, 100, 1
+        )
+
+
+def test_xva_identical() -> None:
+    values = [[1.0, -2.0, 3.0], [3.0, 4.0, -1.0], [-1.0, 10.0, 2.0]]
+    times = [0.5, 1.0, 1.5]
+    a = ofod.credit.profile_from_paths(times, values, 0.9, 5.0)
+    b = ofod_cpp.credit.profile_from_paths(times, values, 0.9, 5.0)
+    assert b.expected_exposure == pytest.approx(a.expected_exposure)
+    assert b.expected_negative_exposure == pytest.approx(
+        a.expected_negative_exposure
+    )
+    assert b.potential_future_exposure == pytest.approx(
+        a.potential_future_exposure
+    )
+    sims = [
+        lib.credit.simulate_forward_exposure(
+            100.0, 100.0, 0.03, 0.25, 1.0, 4, 40000, 9
+        )
+        for lib in (ofod, ofod_cpp)
+    ]
+    assert sims[1].expected_exposure[-1] == pytest.approx(
+        sims[0].expected_exposure[-1], rel=0.03
+    )
+    for lib in (ofod, ofod_cpp):
+        curve = lib.curves.CreditCurve.flat(0.02)
+        b_cva = lib.credit.cva(times, [1.0, 2.0, 3.0], curve, 0.4)
+        assert b_cva == pytest.approx(
+            ofod.credit.cva(
+                times, [1.0, 2.0, 3.0], ofod.curves.CreditCurve.flat(0.02), 0.4
+            ),
+            rel=1e-14,
+        )
+        assert lib.credit.funding_value_adjustment(
+            times, [1.0, 2.0, 3.0], 0.01
+        ) == pytest.approx(0.03)
+    with pytest.raises(ValueError):
+        ofod_cpp.credit.cva(
+            [1.0], [1.0, 2.0], ofod_cpp.curves.CreditCurve.flat(0.01), 0.4
+        )

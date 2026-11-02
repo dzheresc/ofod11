@@ -5,6 +5,7 @@ add_executable(ofod_tests
   core/compounding_test.cc
   core/date_test.cc
   credit/tranche_test.cc
+  credit/credit_models_test.cc
   futures/futures_test.cc
   risk/hedging_test.cc
   risk/var_test.cc

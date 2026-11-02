@@ -14,7 +14,12 @@
 
 #include "ofod/core/compounding.h"
 #include "ofod/core/date.h"
+#include "ofod/credit/cds.h"
+#include "ofod/credit/copula.h"
+#include "ofod/credit/credit_risk.h"
+#include "ofod/credit/xva.h"
 #include "ofod/curves/bond_bootstrap.h"
+#include "ofod/curves/credit_curve.h"
 #include "ofod/curves/vol_surface.h"
 #include "ofod/curves/zero_curve.h"
 #include "ofod/futures/margin.h"
@@ -443,6 +448,190 @@ std::optional<std::vector<double>> EvaluateM7Vector(const std::string& kind,
   return std::nullopt;
 }
 
+credit::CdsTerms ParseCdsTerms(const json& in) {
+  return {.maturity = in["maturity"],
+          .frequency = in["frequency"],
+          .recovery = in["recovery"]};
+}
+
+credit::CdoPool ParsePool(const json& j) {
+  return {
+      .names = j["names"], .hazard = j["hazard"], .recovery = j["recovery"]};
+}
+
+credit::CdoTerms ParseCdoTerms(const json& j) {
+  return {.maturity = j["maturity"],
+          .frequency = j["frequency"],
+          .quadrature_points = j["quadrature_points"]};
+}
+
+credit::Tranche ParseTranche(const json& j) {
+  return {.attachment = j[0], .detachment = j[1]};
+}
+
+std::optional<credit::ExposureProfile> ForwardExposure(const json& in) {
+  return credit::SimulateForwardExposure(in["spot"], in["strike"], in["rate"],
+                                         in["volatility"], in["t"], in["steps"],
+                                         in["paths"], in["seed"], 0.975,
+                                         in.value("threshold", 1e300));
+}
+
+// Chapters 9, 24 and 25; std::nullopt when `kind` is not one of theirs.
+std::optional<double> EvaluateM8(const std::string& kind, const json& in) {
+  if (kind == "hazard_from_spread") {
+    return curves::HazardFromSpread(in["spread"], in["recovery"]);
+  }
+  if (kind == "average_hazard") {
+    return curves::AverageHazard(in["cumulative_default"], in["t"]);
+  }
+  if (kind == "survival_probability") {
+    const auto c = curves::CreditCurve::Create(in["times"], in["hazards"]);
+    REQUIRE(c.has_value());
+    return c->SurvivalProbability(in["t"]);
+  }
+  if (kind == "merton") {
+    const auto m = credit::MertonSolve(in["equity"], in["equity_vol"],
+                                       in["debt"], in["rate"], in["t"]);
+    REQUIRE(m.has_value());
+    const std::string out = in["output"];
+    if (out == "asset_value") return m->asset_value;
+    if (out == "asset_volatility") return m->asset_volatility;
+    if (out == "default_probability") return m->default_probability;
+    return m->debt_value;
+  }
+  if (kind == "bivariate_normal") {
+    return math::BivariateNormCdf(in["a"], in["b"], in["rho"]);
+  }
+  if (kind == "joint_default") {
+    return credit::JointDefaultProbability(in["q1"], in["q2"], in["rho"]);
+  }
+  if (kind == "wcdr")
+    return credit::Wcdr(in["pd"], in["rho"], in["confidence"]);
+  if (kind == "vasicek_credit_loss") {
+    return credit::VasicekCreditLoss(in["exposure"], in["pd"], in["lgd"],
+                                     in["rho"], in["confidence"]);
+  }
+  if (kind == "cds_leg" || kind == "cds_par_spread" ||
+      kind == "cds_seller_value" || kind == "cds_upfront") {
+    const auto terms = ParseCdsTerms(in);
+    const auto credit_curve = curves::CreditCurve::Flat(in["hazard"]);
+    const auto discount = curves::ZeroCurve::Flat(in["rate"]);
+    std::optional<double> v;
+    if (kind == "cds_leg") {
+      const auto legs = credit::CdsLegValues(terms, credit_curve, discount);
+      REQUIRE(legs.has_value());
+      return in["output"] == "protection" ? legs->protection
+                                          : legs->premium_annuity;
+    }
+    if (kind == "cds_par_spread") {
+      v = credit::CdsParSpread(terms, credit_curve, discount);
+    } else if (kind == "cds_seller_value") {
+      const auto b =
+          credit::CdsBuyerValue(terms, in["spread"], credit_curve, discount);
+      if (b) v = -*b;
+    } else {
+      v = credit::CdsUpfront(terms, in["coupon"], credit_curve, discount);
+    }
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "cds_option") {
+    return credit::CdsOptionPrice(in["payer"], in["forward"], in["strike"],
+                                  in["vol"], in["expiry"], in["annuity"]);
+  }
+  if (kind == "tranche_spread_bp" || kind == "implied_correlation") {
+    const auto pool = ParsePool(in["pool"]);
+    const auto terms = ParseCdoTerms(in["terms"]);
+    const auto tranche = ParseTranche(in["tranche"]);
+    const auto discount = curves::ZeroCurve::Flat(in["rate"]);
+    const auto spread = credit::TrancheSpread(tranche, pool, in["correlation"],
+                                              terms, discount);
+    REQUIRE(spread.has_value());
+    if (kind == "tranche_spread_bp") return 1e4 * *spread;
+    const auto rho = credit::ImpliedTrancheCorrelation(tranche, pool, *spread,
+                                                       terms, discount);
+    REQUIRE(rho.has_value());
+    return *rho;
+  }
+  if (kind == "nth_to_default_bp") {
+    const auto r =
+        credit::NthToDefaultSpread({.names = in["names"],
+                                    .nth = in["nth"],
+                                    .hazard = in["hazard"],
+                                    .recovery = in["recovery"],
+                                    .correlation = in["correlation"],
+                                    .maturity = in["maturity"],
+                                    .frequency = in["frequency"]},
+                                   in["rate"], in["paths"], in["seed"]);
+    REQUIRE(r.has_value());
+    return 1e4 * r->spread;
+  }
+  if (kind == "cva") {
+    const auto times = in["times"].get<std::vector<double>>();
+    const auto exposures = in["exposures"].get<std::vector<double>>();
+    const auto v =
+        credit::Cva(times, exposures, curves::CreditCurve::Flat(in["hazard"]),
+                    in["recovery"]);
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "fva") {
+    const auto times = in["times"].get<std::vector<double>>();
+    const auto exposures = in["exposures"].get<std::vector<double>>();
+    const auto v =
+        credit::FundingValueAdjustment(times, exposures, in["spread"]);
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "forward_cva") {
+    // Exposure at T is a call on the forward; default only at T.
+    const double ee = pricers::BsmPrice(instruments::OptionType::kCall,
+                                        in["spot"], in["strike"], in["rate"],
+                                        0.0, in["volatility"], in["t"]);
+    const std::vector<double> times = {in["t"].get<double>()};
+    const std::vector<double> exposures = {ee};
+    const auto v =
+        credit::Cva(times, exposures, curves::CreditCurve::Flat(in["hazard"]),
+                    in["recovery"]);
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "forward_ee_mc") {
+    const auto p = ForwardExposure(in);
+    REQUIRE(p.has_value());
+    return p->expected_exposure.back();
+  }
+  return std::nullopt;
+}
+
+// Vector cases of chapters 9, 24 and 25.
+std::optional<std::vector<double>> EvaluateM8Vector(const std::string& kind,
+                                                    const json& in) {
+  if (kind == "cds_bootstrap_reprice" || kind == "cds_bootstrap_hazards") {
+    const auto mats = in["maturities"].get<std::vector<double>>();
+    const auto spreads = in["spreads"].get<std::vector<double>>();
+    const auto discount = curves::ZeroCurve::Flat(in["rate"]);
+    const auto curve = credit::BootstrapCreditCurve(
+        mats, spreads, in["frequency"], in["recovery"], discount);
+    REQUIRE(curve.has_value());
+    if (kind == "cds_bootstrap_hazards") {
+      return std::vector<double>(curve->hazards().begin(),
+                                 curve->hazards().end());
+    }
+    std::vector<double> out;
+    for (double m : mats) {
+      const auto s = credit::CdsParSpread({.maturity = m,
+                                           .frequency = in["frequency"],
+                                           .recovery = in["recovery"]},
+                                          *curve, discount);
+      REQUIRE(s.has_value());
+      out.push_back(*s);
+    }
+    return out;
+  }
+  return std::nullopt;
+}
+
 // Returns the value the library computes for one scalar case.
 double EvaluateScalar(const std::string& kind, const json& in) {
   if (kind == "growth_factor") {
@@ -743,6 +932,7 @@ double EvaluateScalar(const std::string& kind, const json& in) {
   if (kind == "norm_inv") return math::NormInv(in["p"]);
   if (const auto v = EvaluateM6(kind, in)) return *v;
   if (const auto v = EvaluateM7(kind, in)) return *v;
+  if (const auto v = EvaluateM8(kind, in)) return *v;
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -831,6 +1021,7 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
   }
   if (auto v = EvaluateM6Vector(kind, in)) return *std::move(v);
   if (auto v = EvaluateM7Vector(kind, in)) return *std::move(v);
+  if (auto v = EvaluateM8Vector(kind, in)) return *std::move(v);
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -923,6 +1114,16 @@ TEST_CASE("Golden: Chapter 22 value at risk", "[golden][ch22]") {
 TEST_CASE("Golden: Chapter 23 volatilities and correlations",
           "[golden][ch23]") {
   RunChapter(23);
+}
+
+TEST_CASE("Golden: Chapter 9 XVAs", "[golden][ch09]") { RunChapter(9); }
+
+TEST_CASE("Golden: Chapter 24 credit risk", "[golden][ch24]") {
+  RunChapter(24);
+}
+
+TEST_CASE("Golden: Chapter 25 credit derivatives", "[golden][ch25]") {
+  RunChapter(25);
 }
 
 TEST_CASE("Golden: Chapter 4 interest rates", "[golden][ch04]") {

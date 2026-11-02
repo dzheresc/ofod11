@@ -2,10 +2,13 @@
 
 #include "ofod/math/normal.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <numbers>
+#include <span>
 
 namespace ofod::math {
 
@@ -71,6 +74,109 @@ double NormInv(double p) noexcept {
   const double e = NormCdf(x) - p;
   const double u = e / NormPdf(x);
   return x - u / (1.0 + 0.5 * x * u);
+}
+
+namespace {
+
+// Gauss-Legendre nodes (negative half) and weights for 6, 12, 20 points.
+constexpr std::array<double, 3> kX6 = {-0.9324695142031522, -0.6612093864662647,
+                                       -0.2386191860831970};
+constexpr std::array<double, 3> kW6 = {0.1713244923791705, 0.3607615730481384,
+                                       0.4679139345726904};
+constexpr std::array<double, 6> kX12 = {
+    -0.9815606342467191, -0.9041172563704750, -0.7699026741943050,
+    -0.5873179542866171, -0.3678314989981802, -0.1252334085114692};
+constexpr std::array<double, 6> kW12 = {
+    0.04717533638651177, 0.1069393259953183, 0.1600783285433464,
+    0.2031674267230659,  0.2334925365383547, 0.2491470458134029};
+constexpr std::array<double, 10> kX20 = {
+    -0.9931285991850949, -0.9639719272779138, -0.9122344282513259,
+    -0.8391169718222188, -0.7463319064601508, -0.6360536807265150,
+    -0.5108670019508271, -0.3737060887154196, -0.2277858511416451,
+    -0.07652652113349733};
+constexpr std::array<double, 10> kW20 = {
+    0.01761400713915212, 0.04060142980038694, 0.06267204833410906,
+    0.08327674157670475, 0.1019301198172404,  0.1181945319615184,
+    0.1316886384491766,  0.1420961093183821,  0.1491729864726037,
+    0.1527533871307259};
+
+// P(X > h, Y > k) with correlation r (Genz 2004, "bvnu").
+double UpperBivariate(double h, double k, double r) {
+  std::span<const double> x;
+  std::span<const double> w;
+  if (std::abs(r) < 0.3) {
+    x = kX6;
+    w = kW6;
+  } else if (std::abs(r) < 0.75) {
+    x = kX12;
+    w = kW12;
+  } else {
+    x = kX20;
+    w = kW20;
+  }
+  constexpr double kTwoPi = 2.0 * std::numbers::pi;
+  double hk = h * k;
+  double bvn = 0.0;
+  if (std::abs(r) < 0.925) {
+    const double hs = (h * h + k * k) / 2.0;
+    const double asr = std::asin(r);
+    for (std::size_t i = 0; i < x.size(); ++i) {
+      for (double sign : {-1.0, 1.0}) {
+        const double sn = std::sin(asr * (1.0 + sign * x[i]) / 2.0);
+        bvn += w[i] * std::exp((sn * hk - hs) / (1.0 - sn * sn));
+      }
+    }
+    return bvn * asr / (2.0 * kTwoPi) + NormCdf(-h) * NormCdf(-k);
+  }
+  if (r < 0.0) {
+    k = -k;
+    hk = -hk;
+  }
+  if (std::abs(r) < 1.0) {
+    const double as = (1.0 - r) * (1.0 + r);
+    double a = std::sqrt(as);
+    const double bs = (h - k) * (h - k);
+    const double c = (4.0 - hk) / 8.0;
+    const double d = (12.0 - hk) / 16.0;
+    double asr = -(bs / as + hk) / 2.0;
+    if (asr > -100.0) {
+      bvn = a * std::exp(asr) *
+            (1.0 - c * (bs - as) * (1.0 - d * bs / 5.0) / 3.0 +
+             c * d * as * as / 5.0);
+    }
+    if (hk > -100.0) {
+      const double b = std::sqrt(bs);
+      const double sp = std::sqrt(kTwoPi) * NormCdf(-b / a);
+      bvn -= std::exp(-hk / 2.0) * sp * b *
+             (1.0 - c * bs * (1.0 - d * bs / 5.0) / 3.0);
+    }
+    a /= 2.0;
+    for (std::size_t i = 0; i < x.size(); ++i) {
+      for (double sign : {-1.0, 1.0}) {
+        const double xs = (a + sign * a * x[i]) * (a + sign * a * x[i]);
+        const double rs = std::sqrt(1.0 - xs);
+        asr = -(bs / xs + hk) / 2.0;
+        if (asr > -100.0) {
+          const double sp = 1.0 + c * xs * (1.0 + d * xs);
+          const double ep =
+              std::exp(-hk * xs / (2.0 * (1.0 + rs) * (1.0 + rs))) / rs;
+          bvn += a * w[i] * std::exp(asr) * (ep - sp);
+        }
+      }
+    }
+    bvn = -bvn / kTwoPi;
+  }
+  if (r > 0.0) return bvn + NormCdf(-std::max(h, k));
+  if (h >= k) return -bvn;
+  const double l =
+      h < 0.0 ? NormCdf(k) - NormCdf(h) : NormCdf(-h) - NormCdf(-k);
+  return l - bvn;
+}
+
+}  // namespace
+
+double BivariateNormCdf(double a, double b, double rho) noexcept {
+  return std::clamp(UpperBivariate(-a, -b, rho), 0.0, 1.0);
 }
 
 }  // namespace ofod::math

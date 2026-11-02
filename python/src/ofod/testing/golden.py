@@ -674,6 +674,140 @@ def _evaluate_m7(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _cds_terms(lib: types.ModuleType, i: dict[str, Any]) -> Any:
+    return lib.credit.CdsTerms(i["maturity"], i["frequency"], i["recovery"])
+
+
+def _evaluate_m8(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 9, 24 and 25; returns None for other kinds."""
+    c, cv = lib.credit, lib.curves
+    if kind == "hazard_from_spread":
+        return cv.hazard_from_spread(i["spread"], i["recovery"])
+    if kind == "average_hazard":
+        return cv.average_hazard(i["cumulative_default"], i["t"])
+    if kind == "survival_probability":
+        curve = cv.CreditCurve(i["times"], i["hazards"])
+        return curve.survival_probability(i["t"])
+    if kind == "merton":
+        m = c.merton_solve(
+            i["equity"], i["equity_vol"], i["debt"], i["rate"], i["t"]
+        )
+        return getattr(m, i["output"])
+    if kind == "bivariate_normal":
+        return lib.math.bivariate_norm_cdf(i["a"], i["b"], i["rho"])
+    if kind == "joint_default":
+        return c.joint_default_probability(i["q1"], i["q2"], i["rho"])
+    if kind == "wcdr":
+        return c.wcdr(i["pd"], i["rho"], i["confidence"])
+    if kind == "vasicek_credit_loss":
+        return c.vasicek_credit_loss(
+            i["exposure"], i["pd"], i["lgd"], i["rho"], i["confidence"]
+        )
+    if kind in ("cds_leg", "cds_par_spread", "cds_seller_value", "cds_upfront"):
+        terms = _cds_terms(lib, i)
+        credit = cv.CreditCurve.flat(i["hazard"])
+        discount = cv.ZeroCurve.flat(i["rate"])
+        if kind == "cds_leg":
+            legs = c.cds_leg_values(terms, credit, discount)
+            return getattr(legs, i["output"])
+        if kind == "cds_par_spread":
+            return c.cds_par_spread(terms, credit, discount)
+        if kind == "cds_seller_value":
+            return -c.cds_buyer_value(terms, i["spread"], credit, discount)
+        return c.cds_upfront(terms, i["coupon"], credit, discount)
+    if kind in ("cds_bootstrap_reprice", "cds_bootstrap_hazards"):
+        discount = cv.ZeroCurve.flat(i["rate"])
+        curve = c.bootstrap_credit_curve(
+            i["maturities"],
+            i["spreads"],
+            i["frequency"],
+            i["recovery"],
+            discount,
+        )
+        if kind == "cds_bootstrap_hazards":
+            return list(curve.hazards)
+        return [
+            c.cds_par_spread(
+                c.CdsTerms(m, i["frequency"], i["recovery"]), curve, discount
+            )
+            for m in i["maturities"]
+        ]
+    if kind == "cds_option":
+        return c.cds_option_price(
+            i["payer"],
+            i["forward"],
+            i["strike"],
+            i["vol"],
+            i["expiry"],
+            i["annuity"],
+        )
+    if kind in ("tranche_spread_bp", "implied_correlation"):
+        pj, tj = i["pool"], i["terms"]
+        pool = c.CdoPool(pj["names"], pj["hazard"], pj["recovery"])
+        terms = c.CdoTerms(
+            tj["maturity"], tj["frequency"], tj["quadrature_points"]
+        )
+        tranche = c.Tranche(*i["tranche"])
+        discount = cv.ZeroCurve.flat(i["rate"])
+        spread = c.tranche_spread(
+            tranche, pool, i["correlation"], terms, discount
+        )
+        if kind == "tranche_spread_bp":
+            return 1e4 * spread
+        return c.implied_tranche_correlation(
+            tranche, pool, spread, terms, discount
+        )
+    if kind == "nth_to_default_bp":
+        terms = c.BasketTerms(
+            i["names"],
+            i["nth"],
+            i["hazard"],
+            i["recovery"],
+            i["correlation"],
+            i["maturity"],
+            i["frequency"],
+        )
+        r = c.nth_to_default_spread(terms, i["rate"], i["paths"], i["seed"])
+        return 1e4 * r.spread
+    if kind in ("cva", "forward_cva"):
+        if kind == "cva":
+            times, exposures = i["times"], i["exposures"]
+        else:
+            call = lib.instruments.OptionType.CALL
+            ee = lib.pricers.bsm_price(
+                call,
+                i["spot"],
+                i["strike"],
+                i["rate"],
+                0.0,
+                i["volatility"],
+                i["t"],
+            )
+            times, exposures = [i["t"]], [ee]
+        return c.cva(
+            times, exposures, cv.CreditCurve.flat(i["hazard"]), i["recovery"]
+        )
+    if kind == "fva":
+        return c.funding_value_adjustment(
+            i["times"], i["exposures"], i["spread"]
+        )
+    if kind == "forward_ee_mc":
+        p = c.simulate_forward_exposure(
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["volatility"],
+            i["t"],
+            i["steps"],
+            i["paths"],
+            i["seed"],
+            0.975,
+            i.get("threshold", 1e300),
+        )
+        return p.expected_exposure[-1]
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -759,6 +893,7 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         _evaluate_m5,
         _evaluate_m6,
         _evaluate_m7,
+        _evaluate_m8,
     ):
         result = extra(lib, kind, i)
         if result is not None:

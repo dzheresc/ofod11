@@ -1,0 +1,97 @@
+{
+  "chapter": 9,
+  "cases": [
+    {
+      "id": "cva_intervals",
+      "ref": "Ch 9.1 eq. 9.1: exposures 10, 8, 5 at years 1-3, hazard 2%, R 40% (computed)",
+      "kind": "cva",
+      "inputs": {
+        "times": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "exposures": [
+          10.0,
+          8.0,
+          5.0
+        ],
+        "hazard": 0.02,
+        "recovery": 0.4
+      },
+      "expected": 0.2690470008049658,
+      "tol": 1e-12
+    },
+    {
+      "id": "forward_cva",
+      "ref": "Ch 9.6 forward example: long gold forward F0 = 1600 x e^{0.05}, K = 1500, sigma 20%, 1 year, default only at maturity, hazard 2%, R 30% (computed per ounce)",
+      "kind": "forward_cva",
+      "inputs": {
+        "spot": 1600.0,
+        "strike": 1500.0,
+        "rate": 0.05,
+        "volatility": 0.2,
+        "t": 1.0,
+        "hazard": 0.02,
+        "recovery": 0.3
+      },
+      "expected": 3.1365,
+      "tol": 0.0001
+    },
+    {
+      "id": "forward_ee_mc",
+      "ref": "Ch 9.2 Monte Carlo expected exposure of the forward at maturity matches the analytic 226.29 (computed, 100000 paths)",
+      "kind": "forward_ee_mc",
+      "inputs": {
+        "spot": 1600.0,
+        "strike": 1500.0,
+        "rate": 0.05,
+        "volatility": 0.2,
+        "t": 1.0,
+        "steps": 4,
+        "paths": 100000,
+        "seed": 3
+      },
+      "expected": 226.29,
+      "tol": 3.0
+    },
+    {
+      "id": "collateral_cap",
+      "ref": "Ch 9.5 collateral threshold 100 caps the exposure: expected exposure at maturity falls to about 62 (Monte Carlo, computed)",
+      "kind": "forward_ee_mc",
+      "inputs": {
+        "spot": 1600.0,
+        "strike": 1500.0,
+        "rate": 0.05,
+        "volatility": 0.2,
+        "t": 1.0,
+        "steps": 4,
+        "paths": 100000,
+        "seed": 3,
+        "threshold": 100.0
+      },
+      "expected": 61.96,
+      "tol": 1.0
+    },
+    {
+      "id": "fva",
+      "ref": "Ch 9.4 FVA: 50 bp funding spread on exposures 10, 8, 5 (computed)",
+      "kind": "fva",
+      "inputs": {
+        "times": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "exposures": [
+          10.0,
+          8.0,
+          5.0
+        ],
+        "spread": 0.005
+      },
+      "expected": 0.115,
+      "tol": 1e-14
+    }
+  ]
+}

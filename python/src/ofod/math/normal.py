@@ -121,3 +121,105 @@ def norm_inv(p: float) -> float:
     e = norm_cdf(x) - p
     u = e / norm_pdf(x)
     return x - u / (1.0 + 0.5 * x * u)
+
+
+# Gauss-Legendre nodes (negative half) and weights for 6, 12, 20 points.
+_GL = (
+    (
+        (-0.9324695142031522, -0.6612093864662647, -0.2386191860831970),
+        (0.1713244923791705, 0.3607615730481384, 0.4679139345726904),
+    ),
+    (
+        (
+            -0.9815606342467191, -0.9041172563704750, -0.7699026741943050,
+            -0.5873179542866171, -0.3678314989981802, -0.1252334085114692,
+        ),
+        (
+            0.04717533638651177, 0.1069393259953183, 0.1600783285433464,
+            0.2031674267230659, 0.2334925365383547, 0.2491470458134029,
+        ),
+    ),
+    (
+        (
+            -0.9931285991850949, -0.9639719272779138, -0.9122344282513259,
+            -0.8391169718222188, -0.7463319064601508, -0.6360536807265150,
+            -0.5108670019508271, -0.3737060887154196, -0.2277858511416451,
+            -0.07652652113349733,
+        ),
+        (
+            0.01761400713915212, 0.04060142980038694, 0.06267204833410906,
+            0.08327674157670475, 0.1019301198172404, 0.1181945319615184,
+            0.1316886384491766, 0.1420961093183821, 0.1491729864726037,
+            0.1527533871307259,
+        ),
+    ),
+)  # fmt: skip
+
+
+def _upper_bivariate(h: float, k: float, r: float) -> float:
+    """P(X > h, Y > k) with correlation r (Genz 2004, "bvnu")."""
+    x, w = _GL[0] if abs(r) < 0.3 else _GL[1] if abs(r) < 0.75 else _GL[2]
+    two_pi = 2.0 * math.pi
+    hk = h * k
+    bvn = 0.0
+    if abs(r) < 0.925:
+        hs = (h * h + k * k) / 2.0
+        asr = math.asin(r)
+        for i in range(len(x)):
+            for sign in (-1.0, 1.0):
+                sn = math.sin(asr * (1.0 + sign * x[i]) / 2.0)
+                bvn += w[i] * math.exp((sn * hk - hs) / (1.0 - sn * sn))
+        return bvn * asr / (2.0 * two_pi) + norm_cdf(-h) * norm_cdf(-k)
+    if r < 0.0:
+        k, hk = -k, -hk
+    if abs(r) < 1.0:
+        as_ = (1.0 - r) * (1.0 + r)
+        a = math.sqrt(as_)
+        bs = (h - k) * (h - k)
+        c = (4.0 - hk) / 8.0
+        d = (12.0 - hk) / 16.0
+        asr = -(bs / as_ + hk) / 2.0
+        if asr > -100.0:
+            bvn = (
+                a
+                * math.exp(asr)
+                * (
+                    1.0
+                    - c * (bs - as_) * (1.0 - d * bs / 5.0) / 3.0
+                    + c * d * as_ * as_ / 5.0
+                )
+            )
+        if hk > -100.0:
+            b = math.sqrt(bs)
+            sp = math.sqrt(two_pi) * norm_cdf(-b / a)
+            bvn -= (
+                math.exp(-hk / 2.0)
+                * sp
+                * b
+                * (1.0 - c * bs * (1.0 - d * bs / 5.0) / 3.0)
+            )
+        a /= 2.0
+        for i in range(len(x)):
+            for sign in (-1.0, 1.0):
+                xs = (a + sign * a * x[i]) * (a + sign * a * x[i])
+                rs = math.sqrt(1.0 - xs)
+                asr = -(bs / xs + hk) / 2.0
+                if asr > -100.0:
+                    sp = 1.0 + c * xs * (1.0 + d * xs)
+                    ep = (
+                        math.exp(-hk * xs / (2.0 * (1.0 + rs) * (1.0 + rs)))
+                        / rs
+                    )
+                    bvn += a * w[i] * math.exp(asr) * (ep - sp)
+        bvn = -bvn / two_pi
+    if r > 0.0:
+        return bvn + norm_cdf(-max(h, k))
+    if h >= k:
+        return -bvn
+    lo = norm_cdf(k) - norm_cdf(h) if h < 0.0 else norm_cdf(-h) - norm_cdf(-k)
+    return lo - bvn
+
+
+def bivariate_norm_cdf(a: float, b: float, rho: float) -> float:
+    """M(a, b; rho) = P(X <= a, Y <= b) (Genz's BVND, ~1e-15)."""
+    return min(max(_upper_bivariate(-a, -b, rho), 0.0), 1.0)

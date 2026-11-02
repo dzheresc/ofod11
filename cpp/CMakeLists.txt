@@ -1,6 +1,12 @@
 add_library(ofod
   src/core/compounding.cc
   src/credit/tranche.cc
+  src/credit/credit_risk.cc
+  src/credit/cds.cc
+  src/credit/copula.cc
+  src/credit/xva.cc
+  src/curves/credit_curve.cc
+  src/math/quadrature.cc
   src/futures/margin.cc
   src/futures/rate_futures.cc
   src/futures/treasury.cc
