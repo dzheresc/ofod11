@@ -3,11 +3,10 @@ import pytest
 from ofod.testing import golden
 import ofod_cpp
 
-_CASES = list(
-    golden.iter_cases(
-        2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
-    )
-)
+_CHAPTERS = (
+    2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+)  # fmt: skip
+_CASES = list(golden.iter_cases(*_CHAPTERS))
 
 
 @pytest.mark.parametrize("case", _CASES, ids=[c["id"] for c in _CASES])

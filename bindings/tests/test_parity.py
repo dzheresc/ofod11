@@ -378,3 +378,113 @@ def test_eso_agrees() -> None:
         values.append(p.expected_life_value(40.0, 40.0, 0.05, 0.0, 0.3, 6.5))
     assert values[2] == pytest.approx(values[0], rel=1e-11)
     assert values[3] == pytest.approx(values[1], rel=1e-14)
+
+
+# Chapter 22 and 23 parity.
+
+
+def _garch_sample(n: int = 800) -> list[float]:
+    rng = ofod.random.NormalGenerator(21)
+    g = ofod.stats.Garch11(2e-6, 0.12, 0.86)
+    v, u = g.long_run_variance(), []
+    for _ in range(n):
+        x = math.sqrt(v) * rng.next()
+        u.append(x)
+        v = g.update(v, x)
+    return u
+
+
+@given(
+    st.lists(st.floats(min_value=-5.0, max_value=5.0), min_size=10, max_size=10)
+)
+def test_symmetric_eigen_identical(entries: list[float]) -> None:
+    a = [[0.0] * 4 for _ in range(4)]
+    k = 0
+    for i in range(4):
+        for j in range(i, 4):
+            a[i][j] = a[j][i] = entries[k]
+            k += 1
+    py = ofod.math.symmetric_eigen(a)
+    cpp = ofod_cpp.math.symmetric_eigen(a)
+    assert cpp.values == pytest.approx(py.values, abs=1e-12)
+    for vp, vc in zip(py.vectors, cpp.vectors, strict=True):
+        assert vc == pytest.approx(vp, abs=1e-9)
+
+
+def test_nelder_mead_identical() -> None:
+    def f(x) -> float:
+        return (x[0] - 1.0) ** 2 + 10.0 * (x[1] + 2.0) ** 2 + x[0] * x[1]
+
+    a = ofod.math.nelder_mead(f, [0.0, 0.0], [0.5, 0.5])
+    b = ofod_cpp.math.nelder_mead(f, [0.0, 0.0], [0.5, 0.5])
+    assert b.iterations == a.iterations
+    assert b.x == pytest.approx(a.x, rel=1e-14, abs=1e-15)
+    with pytest.raises(ValueError):
+        ofod_cpp.math.nelder_mead(f, [0.0, 0.0], [0.5])
+
+
+def test_garch_identical() -> None:
+    u = _garch_sample()
+    a = ofod.stats.fit_garch11(u)
+    b = ofod_cpp.stats.fit_garch11(u)
+    assert (b.omega, b.alpha, b.beta) == pytest.approx(
+        (a.omega, a.alpha, a.beta), rel=1e-9
+    )
+    assert b.log_likelihood(u) == pytest.approx(a.log_likelihood(u), rel=1e-13)
+    assert ofod_cpp.stats.ewma_log_likelihood(u, 0.94) == pytest.approx(
+        ofod.stats.ewma_log_likelihood(u, 0.94), rel=1e-13
+    )
+    sq = [x * x for x in u]
+    assert ofod_cpp.stats.ljung_box(sq, 10) == pytest.approx(
+        ofod.stats.ljung_box(sq, 10), rel=1e-12
+    )
+    assert ofod_cpp.stats.ewma_variances(u[:5], 0.9, 1e-4) == pytest.approx(
+        ofod.stats.ewma_variances(u[:5], 0.9, 1e-4), rel=1e-15
+    )
+    with pytest.raises(ValueError):
+        ofod_cpp.stats.fit_garch11([0.01] * 5)
+
+
+@given(st.floats(min_value=0.9, max_value=0.999))
+def test_var_functions_identical(x: float) -> None:
+    losses = [float((i * 37) % 101) for i in range(500)]
+    for name, args in (
+        ("normal_var", (2.0, x, 0.1)),
+        ("normal_expected_shortfall", (2.0, x, 0.1)),
+        ("historical_var", (losses, x)),
+        ("historical_expected_shortfall", (losses, x)),
+        ("kupiec_statistic", (750, 12, 1 - x)),
+        ("binomial_tail_probability", (750, 12, 1 - x)),
+    ):
+        a = getattr(ofod.risk, name)(*args)
+        b = getattr(ofod_cpp.risk, name)(*args)
+        assert b == pytest.approx(a, rel=1e-12), name
+    m_py = ofod.risk.delta_gamma_moments(100.0, -50.0, 0.5)
+    m_cpp = ofod_cpp.risk.delta_gamma_moments(100.0, -50.0, 0.5)
+    assert ofod_cpp.risk.cornish_fisher_var(m_cpp, x) == pytest.approx(
+        ofod.risk.cornish_fisher_var(m_py, x), rel=1e-13
+    )
+
+
+def test_pca_and_mc_var_agree() -> None:
+    rng = ofod.random.NormalGenerator(4)
+    rows = []
+    for _ in range(300):
+        f, g = rng.next(), rng.next()
+        rows.append([f + 0.1 * g, f, f - 0.1 * g, 0.01 * rng.next()])
+    a = ofod.risk.principal_components(rows)
+    b = ofod_cpp.risk.principal_components(rows)
+    assert b.variances == pytest.approx(a.variances, rel=1e-11)
+    assert b.loadings[0] == pytest.approx(a.loadings[0], abs=1e-10)
+    cov = [[4e-4, 6e-5], [6e-5, 1e-4]]
+    results = [
+        lib.risk.monte_carlo_var(
+            lambda dx: 10e6 * dx[0] + 5e6 * dx[1], cov, 0.99, 40000, 2
+        )
+        for lib in (ofod, ofod_cpp)
+    ]
+    assert results[1].var == pytest.approx(results[0].var, rel=0.05)
+    with pytest.raises(ValueError):
+        ofod_cpp.risk.monte_carlo_var(
+            lambda dx: 0.0, [[1.0, 2.0], [2.0, 1.0]], 0.99, 1000, 1
+        )

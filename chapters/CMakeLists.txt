@@ -23,6 +23,9 @@ add_executable(ch19_greek_letters ch19_greek_letters/cpp/greeks.cc)
 add_executable(ch20_volatility_smiles ch20_volatility_smiles/cpp/smiles.cc)
 add_executable(ch21_numerical_procedures
   ch21_numerical_procedures/cpp/numerical.cc)
+add_executable(ch22_var_es ch22_var_es/cpp/var.cc)
+add_executable(ch23_volatility_correlation
+  ch23_volatility_correlation/cpp/volatility.cc)
 
 foreach(target ch01_introduction ch02_futures_markets ch03_hedging
     ch04_interest_rates ch05_forward_futures_prices ch06_interest_rate_futures
@@ -30,6 +33,12 @@ foreach(target ch01_introduction ch02_futures_markets ch03_hedging
     ch12_trading_strategies ch13_binomial_trees ch14_wiener_processes
     ch15_black_scholes ch16_employee_stock_options ch17_index_currency_options
     ch18_futures_options ch19_greek_letters ch20_volatility_smiles
-    ch21_numerical_procedures)
+    ch21_numerical_procedures ch22_var_es ch23_volatility_correlation)
   target_link_libraries(${target} PRIVATE ofod::ofod)
+endforeach()
+
+# Examples that read the sample series in data/market.
+foreach(target ch22_var_es ch23_volatility_correlation)
+  target_compile_definitions(${target} PRIVATE
+    OFOD_DATA_DIR="${PROJECT_SOURCE_DIR}/data/market")
 endforeach()
