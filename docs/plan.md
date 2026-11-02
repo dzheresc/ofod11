@@ -73,11 +73,32 @@ All development happens inside an Ubuntu 24.04 container on Docker Desktop's WSL
 
 - **`docker/Dockerfile`**: `ubuntu:24.04` with GCC 13, Clang 18, clang-tidy/format, CMake, Ninja, ccache, vcpkg, gdb, Valgrind, heaptrack, `linux-tools-generic` (perf), Python 3.12 and `uv`. It's published to GHCR as `ghcr.io/dzheresc/ofod11-dev`, and CI jobs run inside it.
 - **`.devcontainer/devcontainer.json`**: VS Code's "Reopen in Container" uses that image, with the C/C++, CMake Tools, Python and Jupyter extensions. CLion works too, through its Docker toolchain.
-- **Keep the repo on the Linux side.** Clone into a named Docker volume or the WSL2 filesystem (`\\wsl$\...`), not `C:\`. Bind mounts from `C:\` make CMake and Python builds several times slower.
+- **Source on Windows, builds in the container.** The repo is cloned to `C:\develop\ofod11`, and `C:\develop` is bind-mounted into the container at `/develop`, so the working tree is `/develop/ofod11`. Windows tools (editor, Git client, file explorer) see the same files.
+- **Build output stays off the bind mount.** File access across `C:\` is slow under WSL2, so `build/`, `.venv/` and `vcpkg_installed/` are named Docker volumes mounted over those paths inside `/develop/ofod11`. Only the sources cross the Windows boundary, which keeps CMake and Python builds at near-native speed.
+- **Line endings and permissions.** A `.gitattributes` with `* text=auto eol=lf` keeps shell scripts runnable in the container, and `git config core.filemode false` avoids spurious mode changes on the Windows side.
 - **Named volumes for caches**: ccache, vcpkg binary cache and the uv cache, so container rebuilds don't recompile dependencies.
 - **Profiling flags**: the devcontainer adds `--cap-add=SYS_PTRACE` for gdb and Valgrind, and `--cap-add=PERFMON --security-opt seccomp=unconfined` for perf and for TSan's ASLR workaround (`setarch -R`). A `profile` compose service adds `--privileged` for when a tool still refuses to run.
 - **Jupyter**: port 8888 is forwarded, so notebooks open in the Windows browser.
-- **Plots and KCachegrind**: matplotlib output goes to files or notebooks. KCachegrind and massif-visualizer run as Linux GUI apps through WSLg, or you copy the output to Windows and open it in QCachegrind.
+- **Plots and KCachegrind**: matplotlib output goes to files or notebooks. KCachegrind and massif-visualizer run as Linux GUI apps through WSLg. Profile outputs written to `/develop/ofod11/build/profile` can also be copied out and opened in QCachegrind on Windows.
+
+The compose file mounts it like this:
+
+```yaml
+services:
+  dev:
+    image: ghcr.io/dzheresc/ofod11-dev:latest
+    volumes:
+      - C:/develop:/develop
+      - ofod11-build:/develop/ofod11/build
+      - ofod11-venv:/develop/ofod11/.venv
+      - ccache:/root/.cache/ccache
+      - uv-cache:/root/.cache/uv
+    working_dir: /develop/ofod11
+    cap_add: [SYS_PTRACE, PERFMON]
+    security_opt: [seccomp=unconfined]
+    ports: ["8888:8888"]
+volumes: { ofod11-build: {}, ofod11-venv: {}, ccache: {}, uv-cache: {} }
+```
 
 ## Build, test and tooling
 
