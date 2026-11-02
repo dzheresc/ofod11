@@ -2,6 +2,8 @@
 
 import datetime
 import math
+import types
+from typing import Any
 
 from hypothesis import given
 from hypothesis import strategies as st
@@ -644,3 +646,164 @@ def test_xva_identical() -> None:
         ofod_cpp.credit.cva(
             [1.0], [1.0, 2.0], ofod_cpp.curves.CreditCurve.flat(0.01), 0.4
         )
+
+
+_PUT, _CALL = "PUT", "CALL"
+
+
+def _otype(lib: types.ModuleType, name: str) -> Any:
+    return getattr(lib.instruments.OptionType, name)
+
+
+@given(
+    spot=st.floats(60.0, 140.0),
+    vol=st.floats(0.1, 0.6),
+    t=st.floats(0.1, 2.0),
+)
+def test_exotic_closed_forms_identical(
+    spot: float, vol: float, t: float
+) -> None:
+    for name in (_CALL, _PUT):
+        values = []
+        for lib in (ofod, ofod_cpp):
+            p = lib.pricers
+            m = p.TreeMarket(spot, 0.05, 0.02, vol)
+            o = _otype(lib, name)
+            values.append(
+                [
+                    p.gap_option_price(o, m, 100.0, 95.0, t),
+                    p.forward_start_price(o, m, 0.5 * t, t),
+                    p.cash_or_nothing_price(o, m, 100.0, t),
+                    p.asset_or_nothing_price(o, m, 100.0, t),
+                    p.barrier_option_price(
+                        p.BarrierType.DOWN_AND_OUT, o, m, 100.0, 50.0, t
+                    ),
+                    p.barrier_option_price(
+                        p.BarrierType.UP_AND_IN, o, m, 100.0, 150.0, t
+                    ),
+                    p.floating_lookback_price(o, m, spot, t),
+                    p.fixed_lookback_price(o, m, 100.0, spot, t),
+                    p.geometric_asian_price(o, m, 100.0, t),
+                    p.arithmetic_asian_price(o, m, 100.0, t),
+                    p.perpetual_american_price(o, m, 100.0),
+                    p.chooser_price(m, 100.0, 0.5 * t, t),
+                    p.compound_option_price(
+                        p.CompoundType.CALL_ON_CALL, m, 5.0, 0.5 * t, 100.0, t
+                    ),
+                ]
+            )
+        assert values[1] == pytest.approx(values[0], rel=1e-9, abs=1e-11)
+
+
+def test_exchange_and_variance_swap_identical() -> None:
+    strikes = [40.0 + i for i in range(200)]
+    results = []
+    for lib in (ofod, ofod_cpp):
+        p = lib.pricers
+        a = p.ExchangeAssets(100.0, 95.0, 0.02, 0.01, 0.3, 0.2, 0.4)
+        m = p.TreeMarket(100.0, 0.04, 0.01, 0.0)
+        results.append(
+            (
+                p.exchange_option_price(a, 1.0),
+                p.variance_swap_fair_variance(
+                    m, 0.5, strikes, lambda k: 0.25 - 0.1 * math.log(k / 100.0)
+                ),
+            )
+        )
+    assert results[1] == pytest.approx(results[0], rel=1e-12)
+    with pytest.raises(ValueError):
+        ofod_cpp.pricers.variance_swap_fair_variance(
+            ofod_cpp.pricers.TreeMarket(100.0, 0.0, 0.0, 0.0),
+            1.0,
+            [1.0, 2.0, 3.0],
+            lambda k: 0.2,
+        )
+
+
+@pytest.mark.parametrize("alpha", [0.4, 0.8, 1.3, 2.0])
+def test_models_identical(alpha: float) -> None:
+    values = []
+    for lib in (ofod, ofod_cpp):
+        p = lib.pricers
+        call = _otype(lib, _CALL)
+        m = p.TreeMarket(100.0, 0.05, 0.01, 0.25 * 100 ** (1 - alpha))
+        h = p.TreeMarket(100.0, 0.03, 0.01, 0.0)
+        hp = p.HestonParams(0.04, 2.0, 0.05, 0.4, -0.6)
+        values.append(
+            [
+                p.cev_price(call, m, 110.0, 1.0, alpha),
+                p.merton_jump_price(
+                    call,
+                    p.TreeMarket(100.0, 0.05, 0.01, 0.2),
+                    110.0,
+                    1.0,
+                    p.JumpParams(0.5, -0.05, 0.15),
+                ),
+                p.heston_price(call, h, 90.0 + 10 * alpha, 1.0, hp),
+                p.convertible_bond_price(
+                    p.TreeMarket(50.0, 0.05, 0.0, 0.3),
+                    p.ConvertibleTerms(100.0, 2.0, 0.75, 113.0, 0.4, 0.01),
+                    int(20 * alpha),
+                ),
+            ]
+        )
+    assert values[1] == pytest.approx(values[0], rel=1e-8)
+    with pytest.raises(ValueError):
+        ofod_cpp.pricers.cev_price(
+            _otype(ofod_cpp, _CALL),
+            ofod_cpp.pricers.TreeMarket(1, 0, 0, 1),
+            1,
+            1,
+            1,
+        )
+
+
+def test_monte_carlo_models_agree_statistically() -> None:
+    results = []
+    for lib in (ofod, ofod_cpp):
+        p = lib.pricers
+        put = _otype(lib, _PUT)
+        m = p.TreeMarket(36.0, 0.06, 0.0, 0.2)
+        lsm = p.longstaff_schwartz(
+            put, m, 40.0, 1.0, p.LsmOptions(paths=40_000)
+        )
+        hp = p.HestonParams(0.04, 2.0, 0.04, 0.3, -0.7)
+        h = p.TreeMarket(100.0, 0.03, 0.0, 0.0)
+        mc = p.heston_monte_carlo(put, h, 100.0, 1.0, hp, 50, 40_000, 4)
+        results.append((lsm, mc))
+    for a, b in zip(results[0], results[1], strict=True):
+        assert abs(a.price - b.price) < 4.0 * math.hypot(
+            a.std_error, b.std_error
+        )
+    with pytest.raises(ValueError):
+        ofod_cpp.pricers.longstaff_schwartz(
+            _otype(ofod_cpp, _PUT),
+            ofod_cpp.pricers.TreeMarket(36.0, 0.06, 0.0, 0.2),
+            40.0,
+            1.0,
+            ofod_cpp.pricers.LsmOptions(basis_degree=9),
+        )
+
+
+def test_math_additions_identical() -> None:
+    a, b = (
+        ofod.math.gauss_legendre(24, -1.0, 3.0),
+        ofod_cpp.math.gauss_legendre(24, -1.0, 3.0),
+    )
+    assert b.nodes == pytest.approx(a.nodes, abs=1e-14)
+    assert b.weights == pytest.approx(a.weights, abs=1e-14)
+    for lib in (ofod, ofod_cpp):
+        assert lib.math.solve_linear([[4.0, 1.0], [2.0, 3.0]], [1.0, 2.0]) == (
+            pytest.approx([0.1, 0.6])
+        )
+        with pytest.raises(ValueError):
+            lib.math.solve_linear([[0.0, 0.0], [0.0, 0.0]], [1.0, 2.0])
+    for x, k, lam in [(5.0, 3.0, 2.0), (40.0, 10.0, 25.0), (0.5, 1.5, 0.0)]:
+        assert ofod_cpp.math.noncentral_chi_square_cdf(
+            x, k, lam
+        ) == pytest.approx(
+            ofod.math.noncentral_chi_square_cdf(x, k, lam), rel=1e-11
+        )
+    assert ofod_cpp.math.regularized_gamma_p(7.5, 3.0) == pytest.approx(
+        ofod.math.regularized_gamma_p(7.5, 3.0), rel=1e-13
+    )

@@ -1,0 +1,460 @@
+{
+  "chapter": 26,
+  "cases": [
+    {
+      "id": "gap_put_insurance",
+      "ref": "Example 26.1: gap put, S0 = 500,000, K1 = 400,000, K2 = 350,000, r = 5%, sigma = 20%, T = 1 gives $1,895.68",
+      "kind": "gap_option",
+      "inputs": {
+        "type": "put",
+        "market": {
+          "spot": 500000,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.2
+        },
+        "strike": 400000,
+        "trigger": 350000,
+        "t": 1.0
+      },
+      "expected": 1895.68,
+      "tol": 0.01
+    },
+    {
+      "id": "floating_lookback_call",
+      "ref": "Ch 26.11 example: S0 = 50, sigma = 40%, r = 10%, T = 3 months: floating lookback call 8.04",
+      "kind": "floating_lookback",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 50,
+          "rate": 0.1,
+          "yield": 0,
+          "volatility": 0.4
+        },
+        "extreme": 50.0,
+        "t": 0.25
+      },
+      "expected": 8.04,
+      "tol": 0.005
+    },
+    {
+      "id": "floating_lookback_put",
+      "ref": "Ch 26.11 example: floating lookback put 7.79",
+      "kind": "floating_lookback",
+      "inputs": {
+        "type": "put",
+        "market": {
+          "spot": 50,
+          "rate": 0.1,
+          "yield": 0,
+          "volatility": 0.4
+        },
+        "extreme": 50.0,
+        "t": 0.25
+      },
+      "expected": 7.79,
+      "tol": 0.005
+    },
+    {
+      "id": "arithmetic_asian",
+      "ref": "Example 26.3: S0 = K = 50, r = 10%, sigma = 40%, T = 1, moment matching gives 5.62",
+      "kind": "arithmetic_asian",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 50,
+          "rate": 0.1,
+          "yield": 0,
+          "volatility": 0.4
+        },
+        "strike": 50.0,
+        "t": 1.0
+      },
+      "expected": 5.62,
+      "tol": 0.005
+    },
+    {
+      "id": "geometric_asian",
+      "ref": "Example 26.3: the geometric average option is worth 5.13",
+      "kind": "geometric_asian",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 50,
+          "rate": 0.1,
+          "yield": 0,
+          "volatility": 0.4
+        },
+        "strike": 50.0,
+        "t": 1.0
+      },
+      "expected": 5.13,
+      "tol": 0.005
+    },
+    {
+      "id": "chooser",
+      "ref": "Ch 26.9 simple chooser, S = K = 50, r = 8%, sigma = 25%, choose at 3 months, expiry 6 months (computed)",
+      "kind": "chooser",
+      "inputs": {
+        "market": {
+          "spot": 50,
+          "rate": 0.08,
+          "yield": 0,
+          "volatility": 0.25
+        },
+        "strike": 50.0,
+        "t1": 0.25,
+        "t2": 0.5
+      },
+      "expected": 6.107077498162337,
+      "tol": 1e-10
+    },
+    {
+      "id": "forward_start",
+      "ref": "Ch 26.6 forward start, starts in 6 months, expires in 1 year, q = 2% (computed)",
+      "kind": "forward_start",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 60,
+          "rate": 0.05,
+          "yield": 0.02,
+          "volatility": 0.3
+        },
+        "t1": 0.5,
+        "t2": 1.0
+      },
+      "expected": 5.380937008426026,
+      "tol": 1e-10
+    },
+    {
+      "id": "perpetual_put",
+      "ref": "Ch 26.4 perpetual American put, S = K = 50, r = 5%, sigma = 30% (computed)",
+      "kind": "perpetual_american",
+      "inputs": {
+        "type": "put",
+        "market": {
+          "spot": 50,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.3
+        },
+        "strike": 50.0
+      },
+      "expected": 11.60733956282405,
+      "tol": 1e-10
+    },
+    {
+      "id": "perpetual_call",
+      "ref": "Ch 26.4 perpetual American call with q = 3% (computed)",
+      "kind": "perpetual_american",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 50,
+          "rate": 0.05,
+          "yield": 0.03,
+          "volatility": 0.3
+        },
+        "strike": 50.0
+      },
+      "expected": 22.54852108395513,
+      "tol": 1e-10
+    },
+    {
+      "id": "cash_or_nothing",
+      "ref": "Ch 26.10 cash-or-nothing call paying 1 (computed)",
+      "kind": "cash_or_nothing",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.05,
+          "yield": 0.02,
+          "volatility": 0.3
+        },
+        "strike": 110.0,
+        "t": 0.5,
+        "cash": 1.0
+      },
+      "expected": 0.3062099275209127,
+      "tol": 1e-10
+    },
+    {
+      "id": "asset_or_nothing",
+      "ref": "Ch 26.10 asset-or-nothing put (computed)",
+      "kind": "asset_or_nothing",
+      "inputs": {
+        "type": "put",
+        "market": {
+          "spot": 100,
+          "rate": 0.05,
+          "yield": 0.02,
+          "volatility": 0.3
+        },
+        "strike": 90.0,
+        "t": 0.5
+      },
+      "expected": 24.783940119061434,
+      "tol": 1e-10
+    },
+    {
+      "id": "compound_call_on_call",
+      "ref": "Ch 26.8 Geske compound call on call, S = 50, K1 = 3 at 3 months, K2 = 50 at 1 year (computed)",
+      "kind": "compound",
+      "inputs": {
+        "compound": "call_on_call",
+        "market": {
+          "spot": 50,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.3
+        },
+        "k1": 3.0,
+        "t1": 0.25,
+        "k2": 50.0,
+        "t2": 1.0
+      },
+      "expected": 4.370849202289026,
+      "tol": 1e-09
+    },
+    {
+      "id": "compound_put_on_call",
+      "ref": "Ch 26.8 Geske compound put on call, S = 50, K1 = 3 at 3 months, K2 = 50 at 1 year (computed)",
+      "kind": "compound",
+      "inputs": {
+        "compound": "put_on_call",
+        "market": {
+          "spot": 50,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.3
+        },
+        "k1": 3.0,
+        "t1": 0.25,
+        "k2": 50.0,
+        "t2": 1.0
+      },
+      "expected": 0.21795521077776714,
+      "tol": 1e-09
+    },
+    {
+      "id": "compound_call_on_put",
+      "ref": "Ch 26.8 Geske compound call on put, S = 50, K1 = 3 at 3 months, K2 = 50 at 1 year (computed)",
+      "kind": "compound",
+      "inputs": {
+        "compound": "call_on_put",
+        "market": {
+          "spot": 50,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.3
+        },
+        "k1": 3.0,
+        "t1": 0.25,
+        "k2": 50.0,
+        "t2": 1.0
+      },
+      "expected": 2.0893887800992177,
+      "tol": 1e-09
+    },
+    {
+      "id": "compound_put_on_put",
+      "ref": "Ch 26.8 Geske compound put on put, S = 50, K1 = 3 at 3 months, K2 = 50 at 1 year (computed)",
+      "kind": "compound",
+      "inputs": {
+        "compound": "put_on_put",
+        "market": {
+          "spot": 50,
+          "rate": 0.05,
+          "yield": 0,
+          "volatility": 0.3
+        },
+        "k1": 3.0,
+        "t1": 0.25,
+        "k2": 50.0,
+        "t2": 1.0
+      },
+      "expected": 0.3750235635522463,
+      "tol": 1e-09
+    },
+    {
+      "id": "barrier_down_and_out_call_k100_h95",
+      "ref": "Ch 26.9 down and out call, S = 100, K = 100, H = 95, r = 8%, q = 4%, sigma = 25%, T = 0.5 (computed)",
+      "kind": "barrier",
+      "inputs": {
+        "barrier": "down_and_out",
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.08,
+          "yield": 0.04,
+          "volatility": 0.25
+        },
+        "strike": 100.0,
+        "level": 95.0,
+        "t": 0.5
+      },
+      "expected": 4.512598607823694,
+      "tol": 1e-10
+    },
+    {
+      "id": "barrier_down_and_in_call_k100_h95",
+      "ref": "Ch 26.9 down and in call, S = 100, K = 100, H = 95, r = 8%, q = 4%, sigma = 25%, T = 0.5 (computed)",
+      "kind": "barrier",
+      "inputs": {
+        "barrier": "down_and_in",
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.08,
+          "yield": 0.04,
+          "volatility": 0.25
+        },
+        "strike": 100.0,
+        "level": 95.0,
+        "t": 0.5
+      },
+      "expected": 3.3368290146241044,
+      "tol": 1e-10
+    },
+    {
+      "id": "barrier_up_and_out_put_k100_h105",
+      "ref": "Ch 26.9 up and out put, S = 100, K = 100, H = 105, r = 8%, q = 4%, sigma = 25%, T = 0.5 (computed)",
+      "kind": "barrier",
+      "inputs": {
+        "barrier": "up_and_out",
+        "type": "put",
+        "market": {
+          "spot": 100,
+          "rate": 0.08,
+          "yield": 0.04,
+          "volatility": 0.25
+        },
+        "strike": 100.0,
+        "level": 105.0,
+        "t": 0.5
+      },
+      "expected": 3.147878725984981,
+      "tol": 1e-10
+    },
+    {
+      "id": "barrier_up_and_in_put_k100_h105",
+      "ref": "Ch 26.9 up and in put, S = 100, K = 100, H = 105, r = 8%, q = 4%, sigma = 25%, T = 0.5 (computed)",
+      "kind": "barrier",
+      "inputs": {
+        "barrier": "up_and_in",
+        "type": "put",
+        "market": {
+          "spot": 100,
+          "rate": 0.08,
+          "yield": 0.04,
+          "volatility": 0.25
+        },
+        "strike": 100.0,
+        "level": 105.0,
+        "t": 0.5
+      },
+      "expected": 2.760625481019602,
+      "tol": 1e-10
+    },
+    {
+      "id": "barrier_down_and_in_put_k90_h95",
+      "ref": "Ch 26.9 down and in put, S = 100, K = 90, H = 95, r = 8%, q = 4%, sigma = 25%, T = 0.5 (computed)",
+      "kind": "barrier",
+      "inputs": {
+        "barrier": "down_and_in",
+        "type": "put",
+        "market": {
+          "spot": 100,
+          "rate": 0.08,
+          "yield": 0.04,
+          "volatility": 0.25
+        },
+        "strike": 90.0,
+        "level": 95.0,
+        "t": 0.5
+      },
+      "expected": 2.2844692948302807,
+      "tol": 1e-10
+    },
+    {
+      "id": "barrier_up_and_out_call_k100_h120",
+      "ref": "Ch 26.9 up and out call, S = 100, K = 100, H = 120, r = 8%, q = 4%, sigma = 25%, T = 0.5 (computed)",
+      "kind": "barrier",
+      "inputs": {
+        "barrier": "up_and_out",
+        "type": "call",
+        "market": {
+          "spot": 100,
+          "rate": 0.08,
+          "yield": 0.04,
+          "volatility": 0.25
+        },
+        "strike": 100.0,
+        "level": 120.0,
+        "t": 0.5
+      },
+      "expected": 1.4425641824564126,
+      "tol": 1e-10
+    },
+    {
+      "id": "fixed_lookback_call",
+      "ref": "Ch 26.11 fixed-strike lookback call, K = 55 (computed)",
+      "kind": "fixed_lookback",
+      "inputs": {
+        "type": "call",
+        "market": {
+          "spot": 50,
+          "rate": 0.1,
+          "yield": 0.02,
+          "volatility": 0.4
+        },
+        "strike": 55.0,
+        "extreme": 50.0,
+        "t": 1.0
+      },
+      "expected": 14.913104199312173,
+      "tol": 1e-10
+    },
+    {
+      "id": "exchange_option",
+      "ref": "Ch 26.14 Margrabe exchange option (computed)",
+      "kind": "exchange",
+      "inputs": {
+        "receive_spot": 100.0,
+        "deliver_spot": 95.0,
+        "receive_yield": 0.02,
+        "deliver_yield": 0.01,
+        "receive_vol": 0.3,
+        "deliver_vol": 0.2,
+        "correlation": 0.4,
+        "t": 1.0
+      },
+      "expected": 13.02915891828939,
+      "tol": 1e-10
+    },
+    {
+      "id": "variance_swap_skew",
+      "ref": "Ch 26.16 fair variance from a strike grid 50..200 step 1 with smile vol 0.25 - 0.1 ln(K/100) (computed)",
+      "kind": "variance_swap",
+      "inputs": {
+        "market": {
+          "spot": 100,
+          "rate": 0.04,
+          "yield": 0.01,
+          "volatility": 0.0
+        },
+        "t": 0.5,
+        "k_lo": 50.0,
+        "k_hi": 200.0,
+        "k_step": 1.0,
+        "atm_vol": 0.25,
+        "skew": -0.1
+      },
+      "expected": 0.06353467386942602,
+      "tol": 1e-09
+    }
+  ]
+}

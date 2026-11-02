@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <numeric>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace ofod::math {
@@ -97,6 +98,36 @@ std::optional<Eigen> SymmetricEigen(const Matrix& input) {
     out.vectors.push_back(std::move(column));
   }
   return out;
+}
+
+std::optional<std::vector<double>> SolveLinear(Matrix a,
+                                               std::vector<double> b) {
+  const std::size_t n = a.size();
+  if (b.size() != n || n == 0) return std::nullopt;
+  for (const auto& row : a) {
+    if (row.size() != n) return std::nullopt;
+  }
+  for (std::size_t col = 0; col < n; ++col) {
+    std::size_t pivot = col;
+    for (std::size_t r = col + 1; r < n; ++r) {
+      if (std::abs(a[r][col]) > std::abs(a[pivot][col])) pivot = r;
+    }
+    if (a[pivot][col] == 0.0) return std::nullopt;
+    std::swap(a[pivot], a[col]);
+    std::swap(b[pivot], b[col]);
+    for (std::size_t r = col + 1; r < n; ++r) {
+      const double f = a[r][col] / a[col][col];
+      for (std::size_t c = col; c < n; ++c) a[r][c] -= f * a[col][c];
+      b[r] -= f * b[col];
+    }
+  }
+  std::vector<double> x(n);
+  for (std::size_t i = n; i-- > 0;) {
+    double sum = b[i];
+    for (std::size_t c = i + 1; c < n; ++c) sum -= a[i][c] * x[c];
+    x[i] = sum / a[i][i];
+  }
+  return x;
 }
 
 }  // namespace ofod::math

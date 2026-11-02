@@ -18,6 +18,7 @@
 #include "ofod/math/optimize.h"
 #include "ofod/math/quadrature.h"
 #include "ofod/math/roots.h"
+#include "ofod/math/special.h"
 
 namespace ofod::bindings {
 
@@ -47,6 +48,27 @@ void BindMath(nb::module_& m) {
         return *std::move(q);
       },
       nb::arg("n"));
+  m.def(
+      "gauss_legendre",
+      [](int n, double a, double b) {
+        auto q = math::GaussLegendre(n, a, b);
+        if (!q) throw nb::value_error("need 1 <= n <= 200 and b > a");
+        return *std::move(q);
+      },
+      nb::arg("n"), nb::arg("a"), nb::arg("b"));
+  m.def("regularized_gamma_p", &math::RegularizedGammaP, nb::arg("a"),
+        nb::arg("x"));
+  m.def("noncentral_chi_square_cdf", &math::NoncentralChiSquareCdf,
+        nb::arg("x"), nb::arg("dof"), nb::arg("lambda_"));
+  m.def(
+      "solve_linear",
+      [](math::Matrix a, std::vector<double> b) {
+        auto x = math::SolveLinear(std::move(a), std::move(b));
+        if (!x)
+          throw nb::value_error("A must be square, match b, non-singular");
+        return *std::move(x);
+      },
+      nb::arg("a"), nb::arg("b"));
   m.def(
       "gauss_hermite_normal",
       [](int n) {

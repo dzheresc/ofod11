@@ -1,7 +1,9 @@
-"""Gauss-Hermite quadrature (copula factor integration, Ch 24-25)."""
+"""Gaussian quadrature: Gauss-Hermite (copulas, Ch 24-25), Gauss-Legendre."""
 
 import dataclasses
 import math
+
+import numpy as np
 
 
 @dataclasses.dataclass(frozen=True)
@@ -64,3 +66,16 @@ def gauss_hermite_normal(n: int) -> Quadrature:
         [v * math.sqrt(2.0) for v in q.nodes],
         [v / math.sqrt(math.pi) for v in q.weights],
     )
+
+
+def gauss_legendre(n: int, a: float, b: float) -> Quadrature:
+    """Nodes (ascending) and weights for int_a^b f(x) dx.
+
+    Raises:
+        ValueError: For n < 1, n > 200 or b <= a.
+    """
+    if n < 1 or n > 200 or not b > a:
+        raise ValueError("need 1 <= n <= 200 and b > a")
+    x, w = np.polynomial.legendre.leggauss(n)
+    mid, half = 0.5 * (b + a), 0.5 * (b - a)
+    return Quadrature((mid + half * x).tolist(), (half * w).tolist())

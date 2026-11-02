@@ -808,6 +808,106 @@ def _evaluate_m8(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _tree_market(lib: types.ModuleType, j: dict[str, Any]) -> Any:
+    return lib.pricers.TreeMarket(
+        j["spot"], j["rate"], j["yield"], j["volatility"]
+    )
+
+
+def _evaluate_m9(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 26 and 27; returns None for other kinds."""
+    p = lib.pricers
+    if "market" not in i:
+        if kind != "exchange":
+            return None
+        assets = p.ExchangeAssets(
+            i["receive_spot"],
+            i["deliver_spot"],
+            i["receive_yield"],
+            i["deliver_yield"],
+            i["receive_vol"],
+            i["deliver_vol"],
+            i["correlation"],
+        )
+        return p.exchange_option_price(assets, i["t"])
+    m = _tree_market(lib, i["market"])
+    otype = _otype(lib, i["type"]) if "type" in i else None
+    if kind == "gap_option":
+        return p.gap_option_price(otype, m, i["strike"], i["trigger"], i["t"])
+    if kind == "floating_lookback":
+        return p.floating_lookback_price(otype, m, i["extreme"], i["t"])
+    if kind == "fixed_lookback":
+        return p.fixed_lookback_price(
+            otype, m, i["strike"], i["extreme"], i["t"]
+        )
+    if kind == "arithmetic_asian":
+        return p.arithmetic_asian_price(otype, m, i["strike"], i["t"])
+    if kind == "geometric_asian":
+        return p.geometric_asian_price(otype, m, i["strike"], i["t"])
+    if kind == "chooser":
+        return p.chooser_price(m, i["strike"], i["t1"], i["t2"])
+    if kind == "forward_start":
+        return p.forward_start_price(otype, m, i["t1"], i["t2"])
+    if kind == "perpetual_american":
+        return p.perpetual_american_price(otype, m, i["strike"])
+    if kind == "cash_or_nothing":
+        return p.cash_or_nothing_price(otype, m, i["strike"], i["t"], i["cash"])
+    if kind == "asset_or_nothing":
+        return p.asset_or_nothing_price(otype, m, i["strike"], i["t"])
+    if kind == "compound":
+        ctype = getattr(p.CompoundType, i["compound"].upper())
+        return p.compound_option_price(
+            ctype, m, i["k1"], i["t1"], i["k2"], i["t2"]
+        )
+    if kind == "barrier":
+        btype = getattr(p.BarrierType, i["barrier"].upper())
+        return p.barrier_option_price(
+            btype, otype, m, i["strike"], i["level"], i["t"]
+        )
+    if kind == "variance_swap":
+        n = round((i["k_hi"] - i["k_lo"]) / i["k_step"])
+        strikes = [i["k_lo"] + k * i["k_step"] for k in range(n + 1)]
+        atm, skew = i["atm_vol"], i["skew"]
+
+        def vol(k: float) -> float:
+            return float(atm + skew * math.log(k / 100.0))
+
+        return p.variance_swap_fair_variance(m, i["t"], strikes, vol)
+    if kind == "convertible":
+        terms = p.ConvertibleTerms(
+            i["face"],
+            i["conversion_ratio"],
+            i["maturity"],
+            i["call_price"],
+            i["recovery"],
+            i["hazard"],
+        )
+        return p.convertible_bond_price(m, terms, i["steps"])
+    if kind == "lsm":
+        options = p.LsmOptions(
+            i["exercise_dates"], i["paths"], i["seed"], i["basis_degree"]
+        )
+        return p.longstaff_schwartz(
+            otype, m, i["strike"], i["t"], options
+        ).price
+    if kind == "cev":
+        return p.cev_price(otype, m, i["strike"], i["t"], i["alpha"])
+    if kind == "merton_jump":
+        jumps = p.JumpParams(i["intensity"], i["mean_jump"], i["jump_vol"])
+        return p.merton_jump_price(otype, m, i["strike"], i["t"], jumps)
+    if kind in ("heston", "heston_mc"):
+        hp = p.HestonParams(
+            i["v0"], i["kappa"], i["theta"], i["sigma"], i["rho"]
+        )
+        if kind == "heston":
+            return p.heston_price(otype, m, i["strike"], i["t"], hp)
+        r = p.heston_monte_carlo(
+            otype, m, i["strike"], i["t"], hp, i["steps"], i["paths"], i["seed"]
+        )
+        return r.price
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -894,6 +994,7 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         _evaluate_m6,
         _evaluate_m7,
         _evaluate_m8,
+        _evaluate_m9,
     ):
         result = extra(lib, kind, i)
         if result is not None:

@@ -25,6 +25,8 @@ void BindMath(nanobind::module_& m);
 void BindInstruments(nanobind::module_& m);
 void BindCurves(nanobind::module_& m);
 void BindPricers(nanobind::module_& m);
+// Chapters 26 and 27, registered into the pricers submodule.
+void BindExotics(nanobind::module_& m);
 void BindStats(nanobind::module_& m);
 void BindRisk(nanobind::module_& m);
 void BindFutures(nanobind::module_& m);

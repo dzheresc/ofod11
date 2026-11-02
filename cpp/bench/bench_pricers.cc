@@ -1,6 +1,7 @@
 // Copyright 2026 Denis Zhereshchin
 //
-// Google Benchmark suite for the Ch 21 engines. Run from the profile preset:
+// Google Benchmark suite for the Ch 21 engines and the Ch 26-27 models. Run
+// from the profile preset:
 //   ./build/profile/cpp/bench/ofod_bench --benchmark_out=bench.json
 //       --benchmark_out_format=json
 
@@ -9,9 +10,12 @@
 #include <algorithm>
 #include <span>
 
+#include "ofod/pricers/american_mc.h"
 #include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/black_scholes.h"
+#include "ofod/pricers/exotics.h"
 #include "ofod/pricers/finite_difference.h"
+#include "ofod/pricers/model_pricers.h"
 #include "ofod/pricers/monte_carlo.h"
 
 namespace ofod::pricers {
@@ -110,6 +114,57 @@ BENCHMARK(BmPathSimulator)
     ->Arg(4)
     ->Unit(benchmark::kMillisecond)
     ->UseRealTime();
+
+// M9: Heston semi-analytic and Monte Carlo, Longstaff-Schwartz, exotics.
+const HestonParams kHeston{
+    .v0 = 0.04, .kappa = 2.0, .theta = 0.04, .sigma = 0.3, .rho = -0.7};
+const TreeMarket kHestonMarket{.spot = 100.0, .rate = 0.03};
+
+void BmHestonPrice(benchmark::State& state) {
+  const double t = static_cast<double>(state.range(0)) / 12.0;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(
+        HestonPrice(OptionType::kCall, kHestonMarket, 100.0, t, kHeston));
+  }
+}
+BENCHMARK(BmHestonPrice)
+    ->Arg(1)
+    ->Arg(12)
+    ->Arg(60)
+    ->Unit(benchmark::kMicrosecond);
+
+void BmHestonMonteCarlo(benchmark::State& state) {
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(HestonMonteCarlo(
+        OptionType::kCall, kHestonMarket, 100.0, 1.0, kHeston, 100, 10'000, 1));
+  }
+}
+BENCHMARK(BmHestonMonteCarlo)->Unit(benchmark::kMillisecond);
+
+void BmLongstaffSchwartz(benchmark::State& state) {
+  const TreeMarket market{.spot = 36.0, .rate = 0.06, .volatility = 0.2};
+  const int paths = static_cast<int>(state.range(0));
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(LongstaffSchwartz(OptionType::kPut, market, 40.0,
+                                               1.0, {.paths = paths}));
+  }
+}
+BENCHMARK(BmLongstaffSchwartz)
+    ->Arg(10'000)
+    ->Arg(100'000)
+    ->Unit(benchmark::kMillisecond);
+
+void BmExoticClosedForms(benchmark::State& state) {
+  const TreeMarket market{
+      .spot = 100.0, .rate = 0.08, .yield = 0.04, .volatility = 0.25};
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(BarrierOptionPrice(
+        BarrierType::kDownAndOut, OptionType::kCall, market, 100.0, 95.0, 0.5));
+    benchmark::DoNotOptimize(CompoundOptionPrice(
+        CompoundType::kCallOnCall, market, 3.0, 0.25, 100.0, 1.0));
+  }
+}
+BENCHMARK(BmExoticClosedForms)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
 }  // namespace ofod::pricers

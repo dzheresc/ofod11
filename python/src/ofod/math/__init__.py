@@ -2,6 +2,7 @@
 
 from ofod.math.interpolation import LinearInterpolator
 from ofod.math.linalg import Eigen
+from ofod.math.linalg import solve_linear
 from ofod.math.linalg import symmetric_eigen
 from ofod.math.normal import bivariate_norm_cdf
 from ofod.math.normal import norm_cdf
@@ -14,8 +15,11 @@ from ofod.math.optimize import nelder_mead
 from ofod.math.quadrature import Quadrature
 from ofod.math.quadrature import gauss_hermite
 from ofod.math.quadrature import gauss_hermite_normal
+from ofod.math.quadrature import gauss_legendre
 from ofod.math.roots import brent
 from ofod.math.roots import newton
+from ofod.math.special import noncentral_chi_square_cdf
+from ofod.math.special import regularized_gamma_p
 
 __all__ = [
     "Eigen",
@@ -27,11 +31,15 @@ __all__ = [
     "brent",
     "gauss_hermite",
     "gauss_hermite_normal",
+    "gauss_legendre",
     "nelder_mead",
     "newton",
+    "noncentral_chi_square_cdf",
     "norm_cdf",
     "norm_cdf_poly",
     "norm_inv",
     "norm_pdf",
+    "regularized_gamma_p",
+    "solve_linear",
     "symmetric_eigen",
 ]

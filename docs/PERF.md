@@ -85,3 +85,59 @@ compare ratios rather than absolute times with a desktop machine.
 | Path simulator, 100k x 52 steps, 1 / 2 / 4 threads | 106 / 70 / 33 ms |
 
 Full results: [`perf/baseline.json`](perf/baseline.json).
+
+## M9 pass (Ch 26-27 models)
+
+New benchmarks: `BmHestonPrice/{1,12,60}` (maturity in months),
+`BmHestonMonteCarlo` (10,000 paths x 100 steps), `BmLongstaffSchwartz/
+{10000,100000}` (50 exercise dates) and `BmExoticClosedForms` (one barrier
+and one compound option). Results: [`perf/m9.json`](perf/m9.json).
+
+### Findings
+
+1. **Heston: glibc's complex log sorts.** Callgrind on the 1-year
+   semi-analytic price showed 44% of instructions in `qsort`, called from
+   `__x2y2m1` inside glibc's `clog`. glibc takes an exact path for
+   log|z| when |z| is close to 1, and the "little trap" term
+   (1 - g e^{-dT}) / (1 - g) is always close to 1. The library now uses
+   log z = (log |z|^2 / 2, arg z), which is accurate to rounding there. The
+   next 11% was libgcc's `__divdc3` (complex division with overflow and
+   NaN guards that cannot trigger here), replaced by a * conj(b) / |b|^2,
+   and the 1/(iu) factor became Im(...)/u. Prices move by less than 1e-13.
+
+   | Benchmark | Before | After | Speed-up |
+   | --- | --- | --- | --- |
+   | Heston price, 1 month | 2.06 ms | 1.07 ms | 1.9x |
+   | Heston price, 1 year | 996 us | 466 us | 2.1x |
+   | Heston price, 5 years | 368 us | 198 us | 1.9x |
+
+   Short maturities stay the slowest because the characteristic function
+   decays slowly in u, so more 16-point panels pass before the tail test
+   stops the integral.
+
+2. **Longstaff-Schwartz: memory is the path block, nothing else.** Massif
+   on 100,000 paths x 50 dates peaks at 40.9 MB, of which 40.0 MB is the
+   one contiguous block of simulated spots (paths x dates doubles, stored
+   date by date so each regression reads one contiguous row). DHAT counts
+   1,168 heap blocks in total for both benchmark sizes, so there are no
+   allocations inside the backward induction: the regression accumulators
+   are allocated once. If memory matters more than speed, the next step is
+   to regenerate paths backwards with a Brownian bridge instead of storing
+   them.
+
+3. **Longstaff-Schwartz: regression accumulation.** Callgrind put 41% of
+   instructions in the regression loop. The normal matrix is Hankel
+   (entry (r, c) is the sum of x^(r+c)), so the loop now accumulates the
+   2 deg + 1 power sums instead of all (deg + 1)^2 entries; the sums are
+   identical, so prices are bit-for-bit unchanged. 100,000 paths went from
+   254 ms to 193 ms. The rest is random numbers (`generate_canonical`,
+   `log`, `exp`: about 40%), which is intrinsic to the method.
+
+### Regression check against M5
+
+Every M5 benchmark is within noise of `baseline.json` except the
+single-threaded path simulator, which reads 122-126 ms against the
+baseline's 106 ms. An A/B run of the same benchmark built from the M8
+merge commit (`9452e80`) gives the same 123-125 ms on this container, so
+the difference is the cloud host, not the code. The two- and four-thread
+runs are unchanged (69 ms and 35 ms).

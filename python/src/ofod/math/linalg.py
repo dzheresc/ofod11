@@ -91,3 +91,34 @@ def symmetric_eigen(matrix: Sequence[Sequence[float]]) -> Eigen:
             column = [-x for x in column]
         vectors.append(column)
     return Eigen(values, vectors)
+
+
+def solve_linear(
+    a: Sequence[Sequence[float]], b: Sequence[float]
+) -> list[float]:
+    """Solves A x = b (Gaussian elimination with partial pivoting).
+
+    Raises:
+        ValueError: Unless A is square, matches b and is non-singular.
+    """
+    n = len(a)
+    if n == 0 or len(b) != n or any(len(row) != n for row in a):
+        raise ValueError("A must be square and match b")
+    m = [list(map(float, row)) for row in a]
+    rhs = [float(v) for v in b]
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(m[r][col]))
+        if m[pivot][col] == 0.0:
+            raise ValueError("matrix is singular")
+        m[col], m[pivot] = m[pivot], m[col]
+        rhs[col], rhs[pivot] = rhs[pivot], rhs[col]
+        for r in range(col + 1, n):
+            f = m[r][col] / m[col][col]
+            for c in range(col, n):
+                m[r][c] -= f * m[col][c]
+            rhs[r] -= f * rhs[col]
+    x = [0.0] * n
+    for i in range(n - 1, -1, -1):
+        total = rhs[i] - sum(m[i][c] * x[c] for c in range(i + 1, n))
+        x[i] = total / m[i][i]
+    return x

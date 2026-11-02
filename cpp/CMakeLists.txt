@@ -7,6 +7,10 @@ add_library(ofod
   src/credit/xva.cc
   src/curves/credit_curve.cc
   src/math/quadrature.cc
+  src/math/special.cc
+  src/pricers/exotics.cc
+  src/pricers/model_pricers.cc
+  src/pricers/american_mc.cc
   src/futures/margin.cc
   src/futures/rate_futures.cc
   src/futures/treasury.cc
