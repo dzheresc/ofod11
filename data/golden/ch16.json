@@ -1,0 +1,82 @@
+{
+  "chapter": 16,
+  "cases": [
+    {
+      "id": "eso_european_limit",
+      "ref": "Ch 16.3: with no exit, no vesting effect and M -> infinity the ESO is a plain 10-year call (BSM 21.03)",
+      "kind": "eso_tree",
+      "inputs": {
+        "terms": {
+          "strike": 40.0,
+          "maturity": 10.0,
+          "vesting": 3.0,
+          "exercise_multiple": 1000000000.0,
+          "exit_rate": 0.0
+        },
+        "market": {
+          "spot": 40.0,
+          "rate": 0.05,
+          "yield": 0.0,
+          "volatility": 0.3
+        },
+        "steps": 1000
+      },
+      "expected": 21.03,
+      "tol": 0.01
+    },
+    {
+      "id": "eso_hull_white",
+      "ref": "Ch 16.3 Hull-White model: K = S0 = 40, 10 years, vesting 3, M = 1.5, exit 4% a year (computed, 1000 steps)",
+      "kind": "eso_tree",
+      "inputs": {
+        "terms": {
+          "strike": 40.0,
+          "maturity": 10.0,
+          "vesting": 3.0,
+          "exercise_multiple": 1.5,
+          "exit_rate": 0.04
+        },
+        "market": {
+          "spot": 40.0,
+          "rate": 0.05,
+          "yield": 0.0,
+          "volatility": 0.3
+        },
+        "steps": 1000
+      },
+      "expected": 13.0058,
+      "tol": 0.0001
+    },
+    {
+      "id": "expected_life",
+      "ref": "Ch 16.4 expected-life approach: BSM with T = 6.5 years (computed)",
+      "kind": "expected_life_value",
+      "inputs": {
+        "spot": 40.0,
+        "strike": 40.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.3,
+        "expected_life": 6.5
+      },
+      "expected": 16.6703,
+      "tol": 0.0001
+    },
+    {
+      "id": "dilution",
+      "ref": "Ch 16.5 dilution: ESOs valued as warrants, the Example 15.9 numbers (1M shares at 40, 200k options, K = 60, T = 5)",
+      "kind": "warrant_price",
+      "inputs": {
+        "spot": 40.0,
+        "strike": 60.0,
+        "rate": 0.03,
+        "volatility": 0.3,
+        "t": 5.0,
+        "shares": 1000000,
+        "warrants": 200000
+      },
+      "expected": 5.87,
+      "tol": 0.005
+    }
+  ]
+}

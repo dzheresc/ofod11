@@ -24,6 +24,10 @@ add_library(ofod
   src/pricers/black_scholes.cc
   src/pricers/finite_difference.cc
   src/pricers/monte_carlo.cc
+  src/pricers/smile.cc
+  src/pricers/eso.cc
+  src/curves/vol_surface.cc
+  src/greeks/greeks.cc
   src/random/sobol.cc
   src/models/brownian.cc
   src/random/normal_generator.cc

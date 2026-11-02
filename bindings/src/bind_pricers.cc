@@ -12,10 +12,12 @@
 #include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
+#include "ofod/pricers/eso.h"
 #include "ofod/pricers/finite_difference.h"
 #include "ofod/pricers/forward_pricer.h"
 #include "ofod/pricers/fra_pricer.h"
 #include "ofod/pricers/monte_carlo.h"
+#include "ofod/pricers/smile.h"
 #include "ofod/pricers/swap_pricer.h"
 
 namespace ofod::bindings {
@@ -393,6 +395,61 @@ void BindPricers(nb::module_& m) {
       },
       nb::arg("option"), nb::arg("market"), nb::arg("grid"), nb::arg("scheme"),
       nb::arg("american") = AmericanSolver::kPsor);
+
+  // Chapter 20: smiles.
+  m.def(
+      "strike_from_delta",
+      [](OptionType type, double delta, double spot, double rate, double yield,
+         double volatility, double t) {
+        const auto k = pricers::StrikeFromDelta(type, delta, spot, rate, yield,
+                                                volatility, t);
+        if (!k) throw nb::value_error("delta outside the attainable range");
+        return *k;
+      },
+      nb::arg("option_type"), nb::arg("delta"), nb::arg("spot"),
+      nb::arg("rate"), nb::arg("yield_"), nb::arg("volatility"), nb::arg("t"));
+  m.def("minimum_variance_delta", &pricers::MinimumVarianceDelta,
+        nb::arg("bsm_delta"), nb::arg("bsm_vega"), nb::arg("spot"),
+        nb::arg("t"), nb::arg("a"), nb::arg("b"), nb::arg("c"));
+  m.def("implied_density", &pricers::ImpliedDensity, nb::arg("call_low"),
+        nb::arg("call_mid"), nb::arg("call_high"), nb::arg("strike_spacing"),
+        nb::arg("rate"), nb::arg("t"));
+  m.def("lognormal_density", &pricers::LognormalDensity, nb::arg("spot"),
+        nb::arg("strike"), nb::arg("rate"), nb::arg("yield_"),
+        nb::arg("volatility"), nb::arg("t"));
+  m.def("binary_jump_price", &pricers::BinaryJumpPrice, nb::arg("option_type"),
+        nb::arg("strike"), nb::arg("rate"), nb::arg("t"), nb::arg("up"),
+        nb::arg("down"), nb::arg("p_up"));
+
+  // Chapter 16: employee stock options.
+  using pricers::EsoTerms;
+  nb::class_<EsoTerms>(m, "EsoTerms")
+      .def(
+          "__init__",
+          [](EsoTerms* self, double strike, double maturity, double vesting,
+             double exercise_multiple, double exit_rate) {
+            new (self) EsoTerms{strike, maturity, vesting, exercise_multiple,
+                                exit_rate};
+          },
+          nb::arg("strike") = 0.0, nb::arg("maturity") = 0.0,
+          nb::arg("vesting") = 0.0, nb::arg("exercise_multiple") = 0.0,
+          nb::arg("exit_rate") = 0.0)
+      .def_rw("strike", &EsoTerms::strike)
+      .def_rw("maturity", &EsoTerms::maturity)
+      .def_rw("vesting", &EsoTerms::vesting)
+      .def_rw("exercise_multiple", &EsoTerms::exercise_multiple)
+      .def_rw("exit_rate", &EsoTerms::exit_rate);
+  m.def(
+      "price_employee_stock_option",
+      [](const EsoTerms& terms, const TreeMarket& market, int steps) {
+        const auto v = pricers::PriceEmployeeStockOption(terms, market, steps);
+        if (!v) throw nb::value_error("invalid employee stock option terms");
+        return *v;
+      },
+      nb::arg("terms"), nb::arg("market"), nb::arg("steps"));
+  m.def("expected_life_value", &pricers::ExpectedLifeValue, nb::arg("spot"),
+        nb::arg("strike"), nb::arg("rate"), nb::arg("yield_"),
+        nb::arg("volatility"), nb::arg("expected_life"));
 }
 
 }  // namespace ofod::bindings

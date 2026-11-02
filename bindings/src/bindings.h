@@ -32,6 +32,7 @@ void BindCredit(nanobind::module_& m);
 void BindStrategies(nanobind::module_& m);
 void BindRandom(nanobind::module_& m);
 void BindModels(nanobind::module_& m);
+void BindGreeks(nanobind::module_& m);
 
 }  // namespace ofod::bindings
 

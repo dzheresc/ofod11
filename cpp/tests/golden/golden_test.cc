@@ -9,15 +9,18 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ofod/core/compounding.h"
 #include "ofod/core/date.h"
 #include "ofod/curves/bond_bootstrap.h"
+#include "ofod/curves/vol_surface.h"
 #include "ofod/curves/zero_curve.h"
 #include "ofod/futures/margin.h"
 #include "ofod/futures/rate_futures.h"
 #include "ofod/futures/treasury.h"
+#include "ofod/greeks/greeks.h"
 #include "ofod/instruments/bond.h"
 #include "ofod/instruments/cash_flow.h"
 #include "ofod/instruments/option.h"
@@ -28,9 +31,11 @@
 #include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
+#include "ofod/pricers/eso.h"
 #include "ofod/pricers/finite_difference.h"
 #include "ofod/pricers/forward_pricer.h"
 #include "ofod/pricers/monte_carlo.h"
+#include "ofod/pricers/smile.h"
 #include "ofod/pricers/swap_pricer.h"
 #include "ofod/random/normal_generator.h"
 #include "ofod/random/sobol.h"
@@ -152,6 +157,134 @@ pricers::TreeMarket ParseMarket(const json& m) {
           .rate = m["rate"],
           .yield = m["yield"],
           .volatility = m["volatility"]};
+}
+
+greeks::OptionInputs ParseInputs(const json& in) {
+  return {.spot = in["spot"],
+          .rate = in["rate"],
+          .yield = in["yield"],
+          .volatility = in["volatility"],
+          .maturity = in["t"]};
+}
+
+double PickGreek(const greeks::Greeks& g, const std::string& name) {
+  if (name == "delta") return g.delta;
+  if (name == "gamma") return g.gamma;
+  if (name == "vega") return g.vega;
+  if (name == "theta") return g.theta;
+  return g.rho;
+}
+
+greeks::Exposure ParseExposure(const json& j) {
+  return {.delta = j[0], .gamma = j[1], .vega = j[2]};
+}
+
+// Chapters 16, 19 and 20; std::nullopt when `kind` is not one of theirs.
+std::optional<double> EvaluateM6(const std::string& kind, const json& in) {
+  if (kind == "bsm_greek" || kind == "bump_greek") {
+    const auto type = ParseType(in["type"]);
+    const double strike = in["strike"];
+    const auto inputs = ParseInputs(in);
+    const auto g =
+        kind == "bsm_greek"
+            ? greeks::BsmGreeks(type, strike, inputs)
+            : greeks::BumpGreeks(
+                  [&](const greeks::OptionInputs& x) {
+                    return pricers::BsmPrice(type, x.spot, strike, x.rate,
+                                             x.yield, x.volatility, x.maturity);
+                  },
+                  inputs);
+    return PickGreek(g, in["greek"]);
+  }
+  if (kind == "delta_hedge_ratio") {
+    const auto r =
+        greeks::SimulateDeltaHedge({.spot = in["spot"],
+                                    .strike = in["strike"],
+                                    .rate = in["rate"],
+                                    .drift = in["drift"],
+                                    .volatility = in["volatility"],
+                                    .maturity = in["maturity"]},
+                                   in["rebalances"], in["paths"], in["seed"]);
+    REQUIRE(r.has_value());
+    return r->ratio;
+  }
+  if (kind == "vol_surface") {
+    const json& j = in["surface"];
+    const auto surface = curves::VolSurface::Create(
+        j["maturities"], j["strikes"], j["volatilities"],
+        in["interpolation"].get<std::string>() == "linear_vol"
+            ? curves::VolInterpolation::kLinearVol
+            : curves::VolInterpolation::kTotalVariance);
+    REQUIRE(surface.has_value());
+    return surface->Volatility(in["strike"], in["t"]);
+  }
+  if (kind == "implied_density_bsm") {
+    const double k = in["strike"];
+    const double h = in["spacing"];
+    auto call = [&](double strike) {
+      return pricers::BsmPrice(instruments::OptionType::kCall, in["spot"],
+                               strike, in["rate"], in["yield"],
+                               in["volatility"], in["t"]);
+    };
+    return pricers::ImpliedDensity(call(k - h), call(k), call(k + h), h,
+                                   in["rate"], in["t"]);
+  }
+  if (kind == "strike_from_delta") {
+    const auto k = pricers::StrikeFromDelta(ParseType(in["type"]), in["delta"],
+                                            in["spot"], in["rate"], in["yield"],
+                                            in["volatility"], in["t"]);
+    REQUIRE(k.has_value());
+    return *k;
+  }
+  if (kind == "minimum_variance_delta") {
+    return pricers::MinimumVarianceDelta(in["delta"], in["vega"], in["spot"],
+                                         in["t"], in["a"], in["b"], in["c"]);
+  }
+  if (kind == "binary_jump_implied_vol") {
+    const auto type = ParseType(in["type"]);
+    const double price =
+        pricers::BinaryJumpPrice(type, in["strike"], in["rate"], in["t"],
+                                 in["up"], in["down"], in["p_up"]);
+    const auto iv = pricers::ImpliedVolatility(
+        type, price, in["spot"], in["strike"], in["rate"], 0.0, in["t"]);
+    REQUIRE(iv.has_value());
+    return *iv;
+  }
+  if (kind == "eso_tree") {
+    const json& t = in["terms"];
+    const auto v = pricers::PriceEmployeeStockOption(
+        {.strike = t["strike"],
+         .maturity = t["maturity"],
+         .vesting = t["vesting"],
+         .exercise_multiple = t["exercise_multiple"],
+         .exit_rate = t["exit_rate"]},
+        ParseMarket(in["market"]), in["steps"]);
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "expected_life_value") {
+    return pricers::ExpectedLifeValue(in["spot"], in["strike"], in["rate"],
+                                      in["yield"], in["volatility"],
+                                      in["expected_life"]);
+  }
+  return std::nullopt;
+}
+
+// Vector cases of chapters 16, 19 and 20.
+std::optional<std::vector<double>> EvaluateM6Vector(const std::string& kind,
+                                                    const json& in) {
+  if (kind == "gamma_neutral_hedge" || kind == "gamma_vega_neutral_hedge") {
+    const auto portfolio = ParseExposure(in["portfolio"]);
+    const auto h =
+        kind == "gamma_neutral_hedge"
+            ? greeks::GammaNeutralHedge(portfolio, ParseExposure(in["option1"]))
+            : greeks::GammaVegaNeutralHedge(portfolio,
+                                            ParseExposure(in["option1"]),
+                                            ParseExposure(in["option2"]));
+    REQUIRE(h.has_value());
+    return std::vector<double>{h->option1, h->option2, h->underlying};
+  }
+  return std::nullopt;
 }
 
 // Returns the value the library computes for one scalar case.
@@ -452,6 +585,7 @@ double EvaluateScalar(const std::string& kind, const json& in) {
     return r->price;
   }
   if (kind == "norm_inv") return math::NormInv(in["p"]);
+  if (const auto v = EvaluateM6(kind, in)) return *v;
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -538,6 +672,7 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
     }
     return out;
   }
+  if (auto v = EvaluateM6Vector(kind, in)) return *std::move(v);
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -605,6 +740,18 @@ TEST_CASE("Golden: Chapter 17 index and currency options", "[golden][ch17]") {
 
 TEST_CASE("Golden: Chapter 18 futures options", "[golden][ch18]") {
   RunChapter(18);
+}
+
+TEST_CASE("Golden: Chapter 16 employee stock options", "[golden][ch16]") {
+  RunChapter(16);
+}
+
+TEST_CASE("Golden: Chapter 19 Greek letters", "[golden][ch19]") {
+  RunChapter(19);
+}
+
+TEST_CASE("Golden: Chapter 20 volatility smiles", "[golden][ch20]") {
+  RunChapter(20);
 }
 
 TEST_CASE("Golden: Chapter 21 numerical procedures", "[golden][ch21]") {

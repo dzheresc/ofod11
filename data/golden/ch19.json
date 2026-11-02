@@ -1,0 +1,334 @@
+{
+  "chapter": 19,
+  "cases": [
+    {
+      "id": "bsm_greek_delta",
+      "ref": "Ch 19 Example: delta of the 100,000-call position per option",
+      "kind": "bsm_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "delta"
+      },
+      "expected": 0.522,
+      "tol": 0.0005
+    },
+    {
+      "id": "bsm_greek_gamma",
+      "ref": "Ch 19 Example: gamma of the 100,000-call position per option",
+      "kind": "bsm_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "gamma"
+      },
+      "expected": 0.066,
+      "tol": 0.0005
+    },
+    {
+      "id": "bsm_greek_vega",
+      "ref": "Ch 19 Example: vega of the 100,000-call position per option",
+      "kind": "bsm_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "vega"
+      },
+      "expected": 12.1,
+      "tol": 0.01
+    },
+    {
+      "id": "bsm_greek_theta",
+      "ref": "Ch 19 Example: theta of the 100,000-call position per option",
+      "kind": "bsm_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "theta"
+      },
+      "expected": -4.31,
+      "tol": 0.005
+    },
+    {
+      "id": "bsm_greek_rho",
+      "ref": "Ch 19 Example: rho of the 100,000-call position per option",
+      "kind": "bsm_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "rho"
+      },
+      "expected": 8.91,
+      "tol": 0.005
+    },
+    {
+      "id": "bump_greek_delta",
+      "ref": "Ch 19 Example: delta of the 100,000-call position per option",
+      "kind": "bump_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "delta"
+      },
+      "expected": 0.522,
+      "tol": 0.0005
+    },
+    {
+      "id": "bump_greek_gamma",
+      "ref": "Ch 19 Example: gamma of the 100,000-call position per option",
+      "kind": "bump_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "gamma"
+      },
+      "expected": 0.066,
+      "tol": 0.0005
+    },
+    {
+      "id": "bump_greek_vega",
+      "ref": "Ch 19 Example: vega of the 100,000-call position per option",
+      "kind": "bump_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "vega"
+      },
+      "expected": 12.1,
+      "tol": 0.01
+    },
+    {
+      "id": "bump_greek_theta",
+      "ref": "Ch 19 Example: theta of the 100,000-call position per option",
+      "kind": "bump_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "theta"
+      },
+      "expected": -4.31,
+      "tol": 0.005
+    },
+    {
+      "id": "bump_greek_rho",
+      "ref": "Ch 19 Example: rho of the 100,000-call position per option",
+      "kind": "bump_greek",
+      "inputs": {
+        "type": "call",
+        "strike": 50.0,
+        "spot": 49.0,
+        "rate": 0.05,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.38461538461538464,
+        "greek": "rho"
+      },
+      "expected": 8.91,
+      "tol": 0.005
+    },
+    {
+      "id": "gamma_neutral",
+      "ref": "Ch 19.6: gamma -3000 hedged with an option of delta 0.62, gamma 1.5",
+      "kind": "gamma_neutral_hedge",
+      "inputs": {
+        "portfolio": [
+          0.0,
+          -3000.0,
+          0.0
+        ],
+        "option1": [
+          0.62,
+          1.5,
+          0.0
+        ]
+      },
+      "expected": [
+        2000.0,
+        0.0,
+        -1240.0
+      ],
+      "tol": 1e-06
+    },
+    {
+      "id": "gamma_vega_neutral",
+      "ref": "Ch 19.7: gamma -5000, vega -8000 hedged with two options",
+      "kind": "gamma_vega_neutral_hedge",
+      "inputs": {
+        "portfolio": [
+          0.0,
+          -5000.0,
+          -8000.0
+        ],
+        "option1": [
+          0.6,
+          0.5,
+          2.0
+        ],
+        "option2": [
+          0.5,
+          0.8,
+          1.2
+        ]
+      },
+      "expected": [
+        400.0,
+        6000.0,
+        -3240.0
+      ],
+      "tol": 1e-06
+    },
+    {
+      "id": "hedge_performance_4",
+      "ref": "Ch 19.4 hedging performance table: rebalance every 5 weeks",
+      "kind": "delta_hedge_ratio",
+      "inputs": {
+        "spot": 49.0,
+        "strike": 50.0,
+        "rate": 0.05,
+        "drift": 0.13,
+        "volatility": 0.2,
+        "maturity": 0.38461538461538464,
+        "rebalances": 4,
+        "paths": 20000,
+        "seed": 1
+      },
+      "expected": 0.42,
+      "tol": 0.02
+    },
+    {
+      "id": "hedge_performance_5",
+      "ref": "Ch 19.4 hedging performance table: rebalance every 4 weeks (Hull's own simulation noise; sqrt-scaling of the 5-week value gives 0.37)",
+      "kind": "delta_hedge_ratio",
+      "inputs": {
+        "spot": 49.0,
+        "strike": 50.0,
+        "rate": 0.05,
+        "drift": 0.13,
+        "volatility": 0.2,
+        "maturity": 0.38461538461538464,
+        "rebalances": 5,
+        "paths": 20000,
+        "seed": 1
+      },
+      "expected": 0.34,
+      "tol": 0.04
+    },
+    {
+      "id": "hedge_performance_10",
+      "ref": "Ch 19.4 hedging performance table: rebalance every 2 weeks",
+      "kind": "delta_hedge_ratio",
+      "inputs": {
+        "spot": 49.0,
+        "strike": 50.0,
+        "rate": 0.05,
+        "drift": 0.13,
+        "volatility": 0.2,
+        "maturity": 0.38461538461538464,
+        "rebalances": 10,
+        "paths": 20000,
+        "seed": 1
+      },
+      "expected": 0.26,
+      "tol": 0.02
+    },
+    {
+      "id": "hedge_performance_20",
+      "ref": "Ch 19.4 hedging performance table: rebalance every 1 weeks",
+      "kind": "delta_hedge_ratio",
+      "inputs": {
+        "spot": 49.0,
+        "strike": 50.0,
+        "rate": 0.05,
+        "drift": 0.13,
+        "volatility": 0.2,
+        "maturity": 0.38461538461538464,
+        "rebalances": 20,
+        "paths": 20000,
+        "seed": 1
+      },
+      "expected": 0.19,
+      "tol": 0.02
+    },
+    {
+      "id": "hedge_performance_40",
+      "ref": "Ch 19.4 hedging performance table: rebalance every 0.5 weeks",
+      "kind": "delta_hedge_ratio",
+      "inputs": {
+        "spot": 49.0,
+        "strike": 50.0,
+        "rate": 0.05,
+        "drift": 0.13,
+        "volatility": 0.2,
+        "maturity": 0.38461538461538464,
+        "rebalances": 40,
+        "paths": 20000,
+        "seed": 1
+      },
+      "expected": 0.14,
+      "tol": 0.02
+    },
+    {
+      "id": "hedge_performance_80",
+      "ref": "Ch 19.4 hedging performance table: rebalance every 0.25 weeks",
+      "kind": "delta_hedge_ratio",
+      "inputs": {
+        "spot": 49.0,
+        "strike": 50.0,
+        "rate": 0.05,
+        "drift": 0.13,
+        "volatility": 0.2,
+        "maturity": 0.38461538461538464,
+        "rebalances": 80,
+        "paths": 20000,
+        "seed": 1
+      },
+      "expected": 0.09,
+      "tol": 0.015
+    }
+  ]
+}

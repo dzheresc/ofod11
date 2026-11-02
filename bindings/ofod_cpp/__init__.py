@@ -13,6 +13,7 @@ core = _core.core
 credit = _core.credit
 curves = _core.curves
 futures = _core.futures
+greeks = _core.greeks
 instruments = _core.instruments
 math = _core.math
 models = _core.models
@@ -28,6 +29,7 @@ for _name in (
     "credit",
     "curves",
     "futures",
+    "greeks",
     "instruments",
     "math",
     "models",
@@ -44,6 +46,7 @@ __all__ = [
     "credit",
     "curves",
     "futures",
+    "greeks",
     "instruments",
     "math",
     "models",

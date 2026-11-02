@@ -21,6 +21,8 @@ add_executable(ofod_tests
   random/normal_generator_test.cc
   pricers/bounds_test.cc
   pricers/numerical_test.cc
+  pricers/smile_test.cc
+  greeks/greeks_test.cc
   strategies/strategies_test.cc
   math/interpolation_test.cc
   math/normal_test.cc

@@ -15,6 +15,7 @@ _SUBMODULES = (
     "credit",
     "curves",
     "futures",
+    "greeks",
     "instruments",
     "math",
     "models",
@@ -248,3 +249,132 @@ def test_path_simulator_accepts_python_payoff() -> None:
     )
     assert r.paths == 5000
     assert r.price > 0.0
+
+
+# Chapter 19, 20 and 16 parity.
+
+
+def _bsm_pricer(lib, strike: float):
+    call = lib.instruments.OptionType.CALL
+
+    def pricer(x) -> float:
+        return lib.pricers.bsm_price(
+            call, x.spot, strike, x.rate, x.yield_, x.volatility, x.maturity
+        )
+
+    return pricer
+
+
+@given(
+    st.floats(min_value=20.0, max_value=80.0),
+    st.floats(min_value=0.05, max_value=0.6),
+    st.floats(min_value=0.05, max_value=3.0),
+)
+def test_greeks_agree(spot: float, vol: float, t: float) -> None:
+    py_in = ofod.greeks.OptionInputs(spot, 0.04, 0.01, vol, t)
+    cpp_in = ofod_cpp.greeks.OptionInputs(spot, 0.04, 0.01, vol, t)
+    call_py = ofod.instruments.OptionType.CALL
+    call_cpp = ofod_cpp.instruments.OptionType.CALL
+    a = ofod.greeks.bsm_greeks(call_py, 50.0, py_in)
+    b = ofod_cpp.greeks.bsm_greeks(call_cpp, 50.0, cpp_in)
+    for name in ("delta", "gamma", "vega", "theta", "rho"):
+        assert getattr(b, name) == pytest.approx(
+            getattr(a, name), rel=1e-11, abs=1e-12
+        )
+    bumped_py = ofod.greeks.bump_greeks(_bsm_pricer(ofod, 50.0), py_in)
+    bumped = ofod_cpp.greeks.bump_greeks(_bsm_pricer(ofod_cpp, 50.0), cpp_in)
+    assert bumped.delta == pytest.approx(bumped_py.delta, rel=1e-7, abs=1e-9)
+
+
+def test_hedges_and_scenarios_agree() -> None:
+    for lib in (ofod, ofod_cpp):
+        g = lib.greeks
+        h = g.gamma_vega_neutral_hedge(
+            g.Exposure(0.0, -5000.0, -8000.0),
+            g.Exposure(0.6, 0.5, 2.0),
+            g.Exposure(0.5, 0.8, 1.2),
+        )
+        assert (h.option1, h.option2, h.underlying) == pytest.approx(
+            (400.0, 6000.0, -3240.0)
+        )
+        with pytest.raises(ValueError):
+            g.gamma_neutral_hedge(g.Exposure(), g.Exposure(delta=1.0))
+    base_py = ofod.greeks.OptionInputs(49.0, 0.05, 0.0, 0.2, 0.4)
+    base_cpp = ofod_cpp.greeks.OptionInputs(49.0, 0.05, 0.0, 0.2, 0.4)
+    spots, vols = [45.0, 49.0, 53.0], [0.15, 0.2, 0.25]
+    a = ofod.greeks.scenario_grid(_bsm_pricer(ofod, 50.0), base_py, spots, vols)
+    b = ofod_cpp.greeks.scenario_grid(
+        _bsm_pricer(ofod_cpp, 50.0), base_cpp, spots, vols
+    )
+    for ra, rb in zip(a, b, strict=True):
+        assert rb == pytest.approx(ra, abs=1e-12)
+
+
+def test_delta_hedge_agrees_statistically() -> None:
+    results = []
+    for lib in (ofod, ofod_cpp):
+        e = lib.greeks.HedgeExperiment(49.0, 50.0, 0.05, 0.13, 0.2, 20 / 52)
+        results.append(lib.greeks.simulate_delta_hedge(e, 20, 20000, 5))
+    py, cpp = results
+    assert cpp.bsm_price == pytest.approx(py.bsm_price, rel=1e-13)
+    assert cpp.ratio == pytest.approx(py.ratio, abs=0.01)
+    with pytest.raises(ValueError):
+        ofod_cpp.greeks.simulate_delta_hedge(
+            ofod_cpp.greeks.HedgeExperiment(), 0, 10, 1
+        )
+
+
+@given(
+    st.floats(min_value=50.0, max_value=150.0),
+    st.floats(min_value=0.01, max_value=8.0),
+)
+def test_vol_surface_agrees(strike: float, t: float) -> None:
+    grid = ([0.5, 1.0, 2.0], [80.0, 100.0, 120.0])
+    vols = [[0.3, 0.2, 0.25], [0.28, 0.21, 0.24], [0.26, 0.22, 0.23]]
+    for interp in ("TOTAL_VARIANCE", "LINEAR_VOL"):
+        a = ofod.curves.VolSurface(
+            *grid, vols, getattr(ofod.curves.VolInterpolation, interp)
+        )
+        b = ofod_cpp.curves.VolSurface(
+            *grid, vols, getattr(ofod_cpp.curves.VolInterpolation, interp)
+        )
+        assert b.volatility(strike, t) == pytest.approx(
+            a.volatility(strike, t), rel=1e-14
+        )
+    with pytest.raises(ValueError):
+        ofod_cpp.curves.VolSurface([1.0], [100.0], [[0.0]])
+
+
+def test_smile_tools_agree() -> None:
+    results = []
+    for lib in (ofod, ofod_cpp):
+        p = lib.pricers
+        call = lib.instruments.OptionType.CALL
+        results.append(
+            (
+                p.strike_from_delta(call, 0.25, 1.0, 0.02, 0.01, 0.1, 0.5),
+                p.minimum_variance_delta(0.5, 10.0, 50.0, 0.5, -0.2, 0.3, -0.4),
+                p.implied_density(1.0, 0.9, 0.82, 0.1, 0.03, 0.5),
+                p.lognormal_density(10.0, 9.0, 0.03, 0.0, 0.3, 0.25),
+                p.binary_jump_price(call, 50.0, 0.01, 0.1, 58.0, 42.0, 0.4),
+            )
+        )
+        with pytest.raises(ValueError):
+            p.strike_from_delta(call, 1.5, 1.0, 0.02, 0.01, 0.1, 0.5)
+    assert results[1] == pytest.approx(results[0], rel=1e-13)
+
+
+def test_eso_agrees() -> None:
+    values = []
+    for lib in (ofod, ofod_cpp):
+        p = lib.pricers
+        market = p.TreeMarket(spot=40.0, rate=0.05, yield_=0.0, volatility=0.3)
+        terms = p.EsoTerms(40.0, 10.0, 3.0, 1.5, 0.04)
+        values.append(p.price_employee_stock_option(terms, market, 300))
+        with pytest.raises(ValueError):
+            p.price_employee_stock_option(
+                p.EsoTerms(40.0, 10.0, 3.0, 0.5, 0.04), market, 300
+            )
+        values.append(p.expected_life_value(40.0, 40.0, 0.05, 0.0, 0.3, 6.5))
+    assert values[2] == pytest.approx(values[0], rel=1e-11)
+    assert values[3] == pytest.approx(values[1], rel=1e-14)
