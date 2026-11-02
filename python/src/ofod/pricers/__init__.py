@@ -1,5 +1,13 @@
 """Pricing functions."""
 
+from ofod.pricers.binomial_tree import TreeMarket
+from ofod.pricers.binomial_tree import TreeResult
+from ofod.pricers.binomial_tree import TreeScheme
+from ofod.pricers.binomial_tree import TreeStep
+from ofod.pricers.binomial_tree import price_binomial
+from ofod.pricers.binomial_tree import price_tree
+from ofod.pricers.binomial_tree import risk_neutral_probability
+from ofod.pricers.binomial_tree import scheme_step
 from ofod.pricers.bond_pricer import bond_price
 from ofod.pricers.bond_pricer import bond_price_from_yield
 from ofod.pricers.bond_pricer import bond_yield
@@ -7,6 +15,16 @@ from ofod.pricers.bond_pricer import convexity
 from ofod.pricers.bond_pricer import macaulay_duration
 from ofod.pricers.bond_pricer import modified_duration
 from ofod.pricers.bond_pricer import par_yield
+from ofod.pricers.bounds import Range
+from ofod.pricers.bounds import american_call_minus_put
+from ofod.pricers.bounds import american_put_upper_bound
+from ofod.pricers.bounds import call_early_exercise_may_be_optimal
+from ofod.pricers.bounds import call_from_parity
+from ofod.pricers.bounds import call_upper_bound
+from ofod.pricers.bounds import european_call_lower_bound
+from ofod.pricers.bounds import european_put_lower_bound
+from ofod.pricers.bounds import european_put_upper_bound
+from ofod.pricers.bounds import put_from_parity
 from ofod.pricers.forward_pricer import ForwardArbitrage
 from ofod.pricers.forward_pricer import detect_forward_arbitrage
 from ofod.pricers.forward_pricer import forward_contract_value
@@ -27,13 +45,26 @@ from ofod.pricers.swap_pricer import swap_value_as_fras
 
 __all__ = [
     "ForwardArbitrage",
+    "Range",
+    "TreeMarket",
+    "TreeResult",
+    "TreeScheme",
+    "TreeStep",
+    "american_call_minus_put",
+    "american_put_upper_bound",
     "bond_price",
     "bond_price_from_yield",
     "bond_yield",
+    "call_early_exercise_may_be_optimal",
+    "call_from_parity",
+    "call_upper_bound",
     "comparative_advantage_gain",
     "convexity",
     "currency_swap_value",
     "detect_forward_arbitrage",
+    "european_call_lower_bound",
+    "european_put_lower_bound",
+    "european_put_upper_bound",
     "fixed_leg_bond_value",
     "floating_leg_bond_value",
     "forward_contract_value",
@@ -47,6 +78,11 @@ __all__ = [
     "par_swap_rate",
     "par_yield",
     "present_value",
+    "price_binomial",
+    "price_tree",
+    "put_from_parity",
+    "risk_neutral_probability",
+    "scheme_step",
     "simple_forward_rate",
     "swap_value",
     "swap_value_as_fras",

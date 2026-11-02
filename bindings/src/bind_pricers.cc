@@ -6,7 +6,9 @@
 #include <vector>
 
 #include "bindings.h"
+#include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/bond_pricer.h"
+#include "ofod/pricers/bounds.h"
 #include "ofod/pricers/forward_pricer.h"
 #include "ofod/pricers/fra_pricer.h"
 #include "ofod/pricers/swap_pricer.h"
@@ -14,6 +16,13 @@
 namespace ofod::bindings {
 
 namespace nb = nanobind;
+
+namespace {
+
+constexpr const char* kBadTree =
+    "invalid tree: need steps >= 1, u > d, 0 <= p <= 1";
+
+}  // namespace
 
 void BindPricers(nb::module_& m) {
   using instruments::Bond;
@@ -93,6 +102,90 @@ void BindPricers(nb::module_& m) {
   m.def("comparative_advantage_gain", &pricers::ComparativeAdvantageGain,
         nb::arg("fixed_a"), nb::arg("fixed_b"), nb::arg("floating_spread_a"),
         nb::arg("floating_spread_b"));
+
+  m.def("european_call_lower_bound", &pricers::EuropeanCallLowerBound,
+        nb::arg("spot"), nb::arg("strike"), nb::arg("rate"), nb::arg("t"),
+        nb::arg("dividends_pv") = 0.0);
+  m.def("european_put_lower_bound", &pricers::EuropeanPutLowerBound,
+        nb::arg("spot"), nb::arg("strike"), nb::arg("rate"), nb::arg("t"),
+        nb::arg("dividends_pv") = 0.0);
+  m.def("call_upper_bound", &pricers::CallUpperBound, nb::arg("spot"));
+  m.def("european_put_upper_bound", &pricers::EuropeanPutUpperBound,
+        nb::arg("strike"), nb::arg("rate"), nb::arg("t"));
+  m.def("american_put_upper_bound", &pricers::AmericanPutUpperBound,
+        nb::arg("strike"));
+  m.def("put_from_parity", &pricers::PutFromParity, nb::arg("call"),
+        nb::arg("spot"), nb::arg("strike"), nb::arg("rate"), nb::arg("t"),
+        nb::arg("dividends_pv") = 0.0);
+  m.def("call_from_parity", &pricers::CallFromParity, nb::arg("put"),
+        nb::arg("spot"), nb::arg("strike"), nb::arg("rate"), nb::arg("t"),
+        nb::arg("dividends_pv") = 0.0);
+  nb::class_<pricers::Range>(m, "Range")
+      .def(nb::init<double, double>(), nb::arg("lower"), nb::arg("upper"))
+      .def_rw("lower", &pricers::Range::lower)
+      .def_rw("upper", &pricers::Range::upper);
+  m.def("american_call_minus_put", &pricers::AmericanCallMinusPut,
+        nb::arg("spot"), nb::arg("strike"), nb::arg("rate"), nb::arg("t"),
+        nb::arg("dividends_pv") = 0.0);
+  m.def("call_early_exercise_may_be_optimal",
+        &pricers::CallEarlyExerciseMayBeOptimal, nb::arg("dividend"),
+        nb::arg("strike"), nb::arg("rate"), nb::arg("time_to_next"));
+
+  using pricers::TreeMarket;
+  using pricers::TreeResult;
+  using pricers::TreeScheme;
+  using pricers::TreeStep;
+  nb::class_<TreeStep>(m, "TreeStep")
+      .def(nb::init<double, double, double>(), nb::arg("up"), nb::arg("down"),
+           nb::arg("probability"))
+      .def_rw("up", &TreeStep::up)
+      .def_rw("down", &TreeStep::down)
+      .def_rw("probability", &TreeStep::probability);
+  m.def("risk_neutral_probability", &pricers::RiskNeutralProbability,
+        nb::arg("up"), nb::arg("down"), nb::arg("growth"));
+  nb::enum_<TreeScheme>(m, "TreeScheme")
+      .value("COX_ROSS_RUBINSTEIN", TreeScheme::kCoxRossRubinstein)
+      .value("JARROW_RUDD", TreeScheme::kJarrowRudd)
+      .value("TIAN", TreeScheme::kTian);
+  m.def("scheme_step", &pricers::SchemeStep, nb::arg("scheme"),
+        nb::arg("volatility"), nb::arg("drift"), nb::arg("dt"));
+  nb::class_<TreeMarket>(m, "TreeMarket")
+      .def(
+          "__init__",
+          [](TreeMarket* self, double spot, double rate, double yield,
+             double volatility) {
+            new (self) TreeMarket{spot, rate, yield, volatility};
+          },
+          nb::arg("spot") = 0.0, nb::arg("rate") = 0.0, nb::arg("yield_") = 0.0,
+          nb::arg("volatility") = 0.0)
+      .def_rw("spot", &TreeMarket::spot)
+      .def_rw("rate", &TreeMarket::rate)
+      .def_rw("yield_", &TreeMarket::yield)
+      .def_rw("volatility", &TreeMarket::volatility);
+  nb::class_<TreeResult>(m, "TreeResult")
+      .def(nb::init<double, double>(), nb::arg("price"), nb::arg("delta"))
+      .def_rw("price", &TreeResult::price)
+      .def_rw("delta", &TreeResult::delta);
+  m.def(
+      "price_tree",
+      [](const instruments::VanillaOption& option, double spot, double rate,
+         int steps, const TreeStep& step) {
+        const auto r = pricers::PriceTree(option, spot, rate, steps, step);
+        if (!r) throw nb::value_error(kBadTree);
+        return *r;
+      },
+      nb::arg("option"), nb::arg("spot"), nb::arg("rate"), nb::arg("steps"),
+      nb::arg("step"));
+  m.def(
+      "price_binomial",
+      [](const instruments::VanillaOption& option, const TreeMarket& market,
+         int steps, TreeScheme scheme) {
+        const auto r = pricers::PriceBinomial(option, market, steps, scheme);
+        if (!r) throw nb::value_error(kBadTree);
+        return *r;
+      },
+      nb::arg("option"), nb::arg("market"), nb::arg("steps"),
+      nb::arg("scheme") = TreeScheme::kCoxRossRubinstein);
 }
 
 }  // namespace ofod::bindings

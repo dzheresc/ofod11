@@ -1,0 +1,136 @@
+{
+  "chapter": 12,
+  "cases": [
+    {
+      "id": "bull_call_spread",
+      "ref": "Example 12.1: calls K=30 at 3, K=35 at 1",
+      "kind": "strategy_profit",
+      "inputs": {
+        "strategy": "bull_call_spread",
+        "args": [
+          30,
+          3,
+          35,
+          1
+        ],
+        "spots": [
+          25,
+          32,
+          40
+        ]
+      },
+      "expected": [
+        -2,
+        0,
+        3
+      ],
+      "tol": 1e-12
+    },
+    {
+      "id": "bear_put_spread",
+      "ref": "Example 12.2: puts K=30 at 1, K=35 at 3",
+      "kind": "strategy_profit",
+      "inputs": {
+        "strategy": "bear_put_spread",
+        "args": [
+          30,
+          1,
+          35,
+          3
+        ],
+        "spots": [
+          25,
+          33,
+          40
+        ]
+      },
+      "expected": [
+        3,
+        0,
+        -2
+      ],
+      "tol": 1e-12
+    },
+    {
+      "id": "butterfly",
+      "ref": "Example 12.3: calls K=55, 60, 65 at 10, 7, 5",
+      "kind": "strategy_profit",
+      "inputs": {
+        "strategy": "butterfly_call_spread",
+        "args": [
+          55,
+          10,
+          60,
+          7,
+          65,
+          5
+        ],
+        "spots": [
+          50,
+          60,
+          70
+        ]
+      },
+      "expected": [
+        -1,
+        4,
+        -1
+      ],
+      "tol": 1e-12
+    },
+    {
+      "id": "butterfly_cost",
+      "ref": "Example 12.3 cost",
+      "kind": "strategy_cost",
+      "inputs": {
+        "strategy": "butterfly_call_spread",
+        "args": [
+          55,
+          10,
+          60,
+          7,
+          65,
+          5
+        ]
+      },
+      "expected": 1.0,
+      "tol": 1e-12
+    },
+    {
+      "id": "straddle",
+      "ref": "Example 12.4: K=70, call 4, put 3",
+      "kind": "strategy_profit",
+      "inputs": {
+        "strategy": "straddle",
+        "args": [
+          70,
+          4,
+          3
+        ],
+        "spots": [
+          54,
+          70,
+          90
+        ]
+      },
+      "expected": [
+        9,
+        -7,
+        13
+      ],
+      "tol": 1e-12
+    },
+    {
+      "id": "principal_protected",
+      "ref": "Ch 12.2: 1000, r=6%, T=3",
+      "kind": "principal_protected_budget",
+      "inputs": {
+        "principal": 1000.0,
+        "rate": 0.06,
+        "t": 3.0
+      },
+      "expected": 164.73,
+      "tol": 0.005
+    }
+  ]
+}
