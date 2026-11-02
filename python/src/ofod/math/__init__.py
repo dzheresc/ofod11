@@ -3,6 +3,7 @@
 from ofod.math.interpolation import LinearInterpolator
 from ofod.math.normal import norm_cdf
 from ofod.math.normal import norm_cdf_poly
+from ofod.math.normal import norm_inv
 from ofod.math.normal import norm_pdf
 from ofod.math.roots import brent
 from ofod.math.roots import newton
@@ -13,5 +14,6 @@ __all__ = [
     "newton",
     "norm_cdf",
     "norm_cdf_poly",
+    "norm_inv",
     "norm_pdf",
 ]

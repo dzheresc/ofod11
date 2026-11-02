@@ -24,6 +24,7 @@ void BindMath(nb::module_& m) {
   m.def("norm_pdf", &math::NormPdf, nb::arg("x"));
   m.def("norm_cdf", &math::NormCdf, nb::arg("x"));
   m.def("norm_cdf_poly", &math::NormCdfPoly, nb::arg("x"));
+  m.def("norm_inv", &math::NormInv, nb::arg("p"));
 
   m.def(
       "brent",

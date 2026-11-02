@@ -36,7 +36,9 @@
     { "name": "profile", "inherits": "gcc",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g -fno-omit-frame-pointer -DNDEBUG"
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g -fno-omit-frame-pointer -DNDEBUG",
+        "OFOD_BUILD_BENCH": "ON",
+        "VCPKG_MANIFEST_FEATURES": "bench"
       } },
     { "name": "profile-native", "inherits": "profile",
       "cacheVariables": { "CMAKE_CXX_FLAGS": "-march=native" } },

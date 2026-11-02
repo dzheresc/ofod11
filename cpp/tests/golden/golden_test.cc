@@ -22,14 +22,18 @@
 #include "ofod/instruments/cash_flow.h"
 #include "ofod/instruments/option.h"
 #include "ofod/instruments/portfolio.h"
+#include "ofod/math/normal.h"
 #include "ofod/models/brownian.h"
 #include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
+#include "ofod/pricers/finite_difference.h"
 #include "ofod/pricers/forward_pricer.h"
+#include "ofod/pricers/monte_carlo.h"
 #include "ofod/pricers/swap_pricer.h"
 #include "ofod/random/normal_generator.h"
+#include "ofod/random/sobol.h"
 #include "ofod/risk/hedging.h"
 #include "ofod/stats/descriptive.h"
 #include "ofod/strategies/strategies.h"
@@ -141,6 +145,13 @@ std::vector<instruments::CashFlow> ParseFlows(const json& j) {
 
 models::GeometricBrownianMotion ParseGbm(const json& in) {
   return {.drift = in["drift"], .volatility = in["volatility"]};
+}
+
+pricers::TreeMarket ParseMarket(const json& m) {
+  return {.spot = m["spot"],
+          .rate = m["rate"],
+          .yield = m["yield"],
+          .volatility = m["volatility"]};
 }
 
 // Returns the value the library computes for one scalar case.
@@ -391,6 +402,56 @@ double EvaluateScalar(const std::string& kind, const json& in) {
     return pricers::FuturesPutFromParity(in["call"], in["futures"],
                                          in["strike"], in["rate"], in["t"]);
   }
+  if (kind == "control_variate_american") {
+    const auto v = pricers::ControlVariateAmericanPrice(
+        ParseOption(in["option"]), ParseMarket(in["market"]), in["steps"]);
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "binomial_with_dividends") {
+    const auto r = pricers::PriceBinomialWithDividends(
+        ParseOption(in["option"]), ParseMarket(in["market"]), in["steps"],
+        ParseFlows(in["dividends"]));
+    REQUIRE(r.has_value());
+    return r->price;
+  }
+  if (kind == "trinomial_price") {
+    const auto r = pricers::PriceTrinomial(
+        ParseOption(in["option"]), ParseMarket(in["market"]), in["steps"]);
+    REQUIRE(r.has_value());
+    return r->price;
+  }
+  if (kind == "finite_difference") {
+    const auto& g = in["grid"];
+    const pricers::FdGrid grid{.s_min = g["s_min"],
+                               .s_max = g["s_max"],
+                               .price_steps = g["price_steps"],
+                               .time_steps = g["time_steps"],
+                               .log_space = g["log_space"]};
+    const std::string scheme = in["scheme"];
+    const auto v = pricers::PriceFiniteDifference(
+        ParseOption(in["option"]), ParseMarket(in["market"]), grid,
+        scheme == "explicit"   ? pricers::FdScheme::kExplicit
+        : scheme == "implicit" ? pricers::FdScheme::kImplicit
+                               : pricers::FdScheme::kCrankNicolson,
+        in["american"] == "projection" ? pricers::AmericanSolver::kProjection
+                                       : pricers::AmericanSolver::kPsor);
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "mc_european") {
+    const std::string method = in["method"];
+    const auto r = pricers::MonteCarloEuropean(
+        ParseOption(in["option"]), ParseMarket(in["market"]),
+        {.paths = in["paths"],
+         .seed = in["seed"],
+         .method = method == "antithetic"
+                       ? pricers::VarianceReduction::kAntithetic
+                       : pricers::VarianceReduction::kNone});
+    REQUIRE(r.has_value());
+    return r->price;
+  }
+  if (kind == "norm_inv") return math::NormInv(in["p"]);
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -468,6 +529,15 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
     REQUIRE(lower.has_value());
     return random::Correlate(*lower, in["z"].get<std::vector<double>>());
   }
+  if (kind == "sobol_points") {
+    auto sobol = random::Sobol::Create(in["dimensions"]);
+    REQUIRE(sobol.has_value());
+    std::vector<double> out;
+    for (int i = 0; i < in["count"].get<int>(); ++i) {
+      for (double x : sobol->Next()) out.push_back(x);
+    }
+    return out;
+  }
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -535,6 +605,10 @@ TEST_CASE("Golden: Chapter 17 index and currency options", "[golden][ch17]") {
 
 TEST_CASE("Golden: Chapter 18 futures options", "[golden][ch18]") {
   RunChapter(18);
+}
+
+TEST_CASE("Golden: Chapter 21 numerical procedures", "[golden][ch21]") {
+  RunChapter(21);
 }
 
 TEST_CASE("Golden: Chapter 4 interest rates", "[golden][ch04]") {

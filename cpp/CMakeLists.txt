@@ -22,6 +22,9 @@ add_library(ofod
   src/pricers/binomial_tree.cc
   src/pricers/bounds.cc
   src/pricers/black_scholes.cc
+  src/pricers/finite_difference.cc
+  src/pricers/monte_carlo.cc
+  src/random/sobol.cc
   src/models/brownian.cc
   src/random/normal_generator.cc
   src/strategies/strategies.cc
@@ -32,6 +35,8 @@ target_include_directories(ofod PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(ofod PUBLIC cxx_std_20)
+find_package(Threads REQUIRED)
+target_link_libraries(ofod PUBLIC Threads::Threads)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(ofod PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)

@@ -25,6 +25,10 @@ if(OFOD_BUILD_TESTS)
   add_subdirectory(cpp/tests)
 endif()
 
+if(OFOD_BUILD_BENCH)
+  add_subdirectory(cpp/bench)
+endif()
+
 if(OFOD_BUILD_CHAPTERS)
   add_subdirectory(chapters)
 endif()

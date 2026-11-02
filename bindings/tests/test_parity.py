@@ -1,6 +1,7 @@
 """Checks that ofod_cpp and ofod expose the same API and agree numerically."""
 
 import datetime
+import math
 
 from hypothesis import given
 from hypothesis import strategies as st
@@ -177,3 +178,73 @@ def test_gbm_paths_agree() -> None:
         a = getattr(py, method)(100.0, 0.01, shocks)
         b = getattr(cpp, method)(100.0, 0.01, shocks)
         assert b == pytest.approx(a, rel=1e-13)
+
+
+def test_sobol_points_identical() -> None:
+    a, b = ofod.random.Sobol(8), ofod_cpp.random.Sobol(8)
+    for _ in range(300):
+        assert a.next() == b.next()
+
+
+@given(
+    st.sampled_from(["CALL", "PUT"]),
+    st.sampled_from(["EUROPEAN", "AMERICAN"]),
+    st.floats(min_value=30.0, max_value=70.0),
+)
+def test_trees_and_finite_differences_agree(
+    kind: str, exercise: str, strike: float
+) -> None:
+    def run(lib) -> list[float]:
+        ins, p = lib.instruments, lib.pricers
+        option = ins.VanillaOption(
+            getattr(ins.OptionType, kind),
+            getattr(ins.Exercise, exercise),
+            strike,
+            0.75,
+        )
+        market = p.TreeMarket(50.0, 0.06, 0.0, 0.3)
+        grid = p.FdGrid(0.0, 200.0, 80, 40)
+        divs = [ins.CashFlow(0.3, 1.0)]
+        return [
+            p.price_trinomial(option, market, 40).price,
+            p.price_binomial_with_dividends(option, market, 40, divs).price,
+            p.price_finite_difference(
+                option, market, grid, p.FdScheme.CRANK_NICOLSON
+            ),
+            p.price_finite_difference(
+                option, market, grid, p.FdScheme.EXPLICIT
+            ),
+        ]
+
+    assert run(ofod_cpp) == pytest.approx(run(ofod), rel=1e-10, abs=1e-10)
+
+
+def test_monte_carlo_agrees_statistically() -> None:
+    option = ofod.instruments.VanillaOption(strike=40.0, maturity=0.5)
+    for name in ("NONE", "ANTITHETIC", "CONTROL_VARIATE", "QUASI_RANDOM"):
+        results = []
+        for lib in (ofod, ofod_cpp):
+            p = lib.pricers
+            opt = lib.instruments.VanillaOption(strike=40.0, maturity=0.5)
+            market = p.TreeMarket(42.0, 0.1, 0.0, 0.2)
+            options = p.McOptions(
+                paths=40_000, method=getattr(p.VarianceReduction, name)
+            )
+            results.append(p.monte_carlo_european(opt, market, options))
+        a, b = results
+        assert abs(a.price - b.price) < 5 * math.hypot(a.std_error, b.std_error)
+    assert option.strike == 40.0
+    assert ofod.pricers.mix_seed(7, 3) == ofod_cpp.pricers.mix_seed(7, 3)
+
+
+def test_path_simulator_accepts_python_payoff() -> None:
+    p = ofod_cpp.pricers
+    r = p.simulate_gbm_paths(
+        p.TreeMarket(42.0, 0.1, 0.0, 0.2),
+        0.5,
+        4,
+        lambda path: max(sum(path[1:]) / 4 - 40.0, 0.0),
+        p.McOptions(paths=5000, threads=4),
+    )
+    assert r.paths == 5000
+    assert r.price > 0.0

@@ -3,5 +3,6 @@
 from ofod.random.normal_generator import NormalGenerator
 from ofod.random.normal_generator import cholesky
 from ofod.random.normal_generator import correlate
+from ofod.random.sobol import Sobol
 
-__all__ = ["NormalGenerator", "cholesky", "correlate"]
+__all__ = ["NormalGenerator", "Sobol", "cholesky", "correlate"]

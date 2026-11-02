@@ -18,6 +18,11 @@ namespace ofod::math {
 // absolute error below 7.5e-8).
 [[nodiscard]] double NormCdfPoly(double x) noexcept;
 
+// Returns the inverse of N: x with N(x) = p for p in (0, 1). Acklam's
+// rational approximation refined by one Halley step (full double
+// precision). Returns -inf / +inf at p = 0 / 1 and NaN outside [0, 1].
+[[nodiscard]] double NormInv(double p) noexcept;
+
 }  // namespace ofod::math
 
 #endif  // OFOD_MATH_NORMAL_H_
