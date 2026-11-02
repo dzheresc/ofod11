@@ -1,0 +1,16 @@
+{
+  "chapter": 3,
+  "title": "Hedging strategies using futures",
+  "cases": [
+    {"id": "s3_4_hedge_ratio", "ref": "Section 3.4, airline jet fuel cross hedge", "kind": "min_variance_hedge_ratio",
+     "inputs": {"correlation": 0.928, "spot_vol": 0.0263, "futures_vol": 0.0313}, "expected": 0.78, "tol": 0.005},
+    {"id": "s3_4_contracts", "ref": "Section 3.4, 2,000,000 gallons with 42,000-gallon contracts", "kind": "optimal_contracts",
+     "inputs": {"hedge_ratio": 0.78, "exposure_units": 2000000, "contract_units": 42000}, "expected": 37.14, "tol": 0.005},
+    {"id": "s3_5_beta_hedge", "ref": "Section 3.5, portfolio 5,050,000, beta 1.5, futures 1,010 x 250", "kind": "beta_hedge_contracts",
+     "inputs": {"beta": 1.5, "portfolio_value": 5050000, "futures_value": 252500}, "expected": 30, "tol": 1e-9},
+    {"id": "s3_5_reduce_beta", "ref": "Section 3.5, reducing beta from 1.5 to 0.75", "kind": "change_beta_contracts",
+     "inputs": {"beta": 1.5, "target_beta": 0.75, "portfolio_value": 5050000, "futures_value": 252500}, "expected": -15, "tol": 1e-9},
+    {"id": "s3_5_increase_beta", "ref": "Section 3.5, increasing beta from 1.5 to 2.0", "kind": "change_beta_contracts",
+     "inputs": {"beta": 1.5, "target_beta": 2.0, "portfolio_value": 5050000, "futures_value": 252500}, "expected": 10, "tol": 1e-9}
+  ]
+}

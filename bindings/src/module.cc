@@ -18,4 +18,12 @@ NB_MODULE(_core, m) {
   ofod::bindings::BindCurves(curves);
   nanobind::module_ pricers = m.def_submodule("pricers", "ofod::pricers");
   ofod::bindings::BindPricers(pricers);
+  nanobind::module_ stats = m.def_submodule("stats", "ofod::stats");
+  ofod::bindings::BindStats(stats);
+  nanobind::module_ risk = m.def_submodule("risk", "ofod::risk");
+  ofod::bindings::BindRisk(risk);
+  nanobind::module_ futures = m.def_submodule("futures", "ofod::futures");
+  ofod::bindings::BindFutures(futures);
+  nanobind::module_ credit = m.def_submodule("credit", "ofod::credit");
+  ofod::bindings::BindCredit(credit);
 }

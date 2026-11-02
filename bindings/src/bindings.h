@@ -13,13 +13,22 @@
 
 #include <nanobind/nanobind.h>
 
+#include "ofod/core/date.h"
+
 namespace ofod::bindings {
+
+// Converts a Python datetime.date (or anything with year/month/day).
+Date ToDate(const nanobind::handle& d);
 
 void BindCore(nanobind::module_& m);
 void BindMath(nanobind::module_& m);
 void BindInstruments(nanobind::module_& m);
 void BindCurves(nanobind::module_& m);
 void BindPricers(nanobind::module_& m);
+void BindStats(nanobind::module_& m);
+void BindRisk(nanobind::module_& m);
+void BindFutures(nanobind::module_& m);
+void BindCredit(nanobind::module_& m);
 
 }  // namespace ofod::bindings
 

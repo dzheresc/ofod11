@@ -17,10 +17,14 @@ find_package(nanobind CONFIG REQUIRED)
 nanobind_add_module(_core NB_STATIC
   src/module.cc
   src/bind_core.cc
+  src/bind_credit.cc
   src/bind_curves.cc
+  src/bind_futures.cc
   src/bind_instruments.cc
   src/bind_math.cc
   src/bind_pricers.cc
+  src/bind_risk.cc
+  src/bind_stats.cc
 )
 target_link_libraries(_core PRIVATE ofod::ofod)
 

@@ -4,17 +4,24 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
+#include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 
 #include "ofod/core/compounding.h"
+#include "ofod/core/date.h"
 #include "ofod/curves/bond_bootstrap.h"
 #include "ofod/curves/zero_curve.h"
+#include "ofod/futures/margin.h"
+#include "ofod/futures/rate_futures.h"
+#include "ofod/futures/treasury.h"
 #include "ofod/instruments/bond.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/forward_pricer.h"
+#include "ofod/pricers/swap_pricer.h"
+#include "ofod/risk/hedging.h"
 
 namespace ofod {
 namespace {
@@ -48,6 +55,27 @@ instruments::Bond ParseBond(const json& j) {
           .coupon_rate = j["coupon_rate"].get<double>(),
           .maturity = j["maturity"].get<double>(),
           .frequency = j["frequency"].get<int>()};
+}
+
+futures::MarginSpec ParseMarginSpec(const json& j) {
+  return {.initial_margin = j["initial_margin"],
+          .maintenance_margin = j["maintenance_margin"],
+          .contract_size = j["contract_size"],
+          .contracts = j["contracts"],
+          .side = j["side"] == "long" ? instruments::Side::kLong
+                                      : instruments::Side::kShort};
+}
+
+Date ParseDate(const json& j) {
+  return Date(j[0].get<int>(), j[1].get<unsigned>(), j[2].get<unsigned>());
+}
+
+instruments::InterestRateSwap ParseSwap(const json& j) {
+  return {.notional = j["notional"],
+          .fixed_rate = j["fixed_rate"],
+          .frequency = j["frequency"],
+          .payment_times = j["payment_times"].get<std::vector<double>>(),
+          .next_floating_rate = j["next_floating_rate"]};
 }
 
 // Returns the value the library computes for one scalar case.
@@ -109,6 +137,99 @@ double EvaluateScalar(const std::string& kind, const json& in) {
     return pricers::ForwardContractValue(f, in["delivery_price"], in["rate"],
                                          in["t"], instruments::Side::kLong);
   }
+  if (kind == "margin_cumulative_gain") {
+    const auto prices = in["prices"].get<std::vector<double>>();
+    return futures::SimulateMarginAccount(ParseMarginSpec(in), prices)
+        .back()
+        .cumulative_gain;
+  }
+  if (kind == "min_variance_hedge_ratio") {
+    return risk::MinimumVarianceHedgeRatio(in["correlation"], in["spot_vol"],
+                                           in["futures_vol"]);
+  }
+  if (kind == "optimal_contracts") {
+    return risk::OptimalContracts(in["hedge_ratio"], in["exposure_units"],
+                                  in["contract_units"]);
+  }
+  if (kind == "beta_hedge_contracts") {
+    return risk::BetaHedgeContracts(in["beta"], in["portfolio_value"],
+                                    in["futures_value"]);
+  }
+  if (kind == "change_beta_contracts") {
+    return risk::ChangeBetaContracts(in["beta"], in["target_beta"],
+                                     in["portfolio_value"],
+                                     in["futures_value"]);
+  }
+  if (kind == "parse_thirty_seconds") {
+    const auto q = futures::ParseThirtySeconds(in["quote"].get<std::string>());
+    REQUIRE(q.has_value());
+    return *q;
+  }
+  if (kind == "treasury_cash_price") {
+    const auto q = futures::ParseThirtySeconds(in["quoted"].get<std::string>());
+    REQUIRE(q.has_value());
+    return futures::CashPrice(
+        *q, futures::AccruedInterest(
+                ParseDate(in["last_coupon"]), ParseDate(in["next_coupon"]),
+                ParseDate(in["settlement"]), in["coupon"]));
+  }
+  if (kind == "conversion_factor") {
+    return futures::ConversionFactor(in["coupon_rate"], in["years"]);
+  }
+  if (kind == "treasury_futures_quote") {
+    const double r = in["rate"];
+    const double cash =
+        futures::CashPrice(in["quoted_bond"], in["accrued_now"]);
+    const double coupons_pv = in["coupon"].get<double>() *
+                              std::exp(-r * in["coupon_time"].get<double>());
+    return futures::TreasuryFuturesQuote(cash, coupons_pv, r, in["t"],
+                                         in["accrued_at_delivery"],
+                                         in["conversion_factor"]);
+  }
+  if (kind == "convexity_adjustment") {
+    return futures::ConvexityAdjustment(in["sigma"], in["t1"], in["t2"]);
+  }
+  if (kind == "duration_hedge_contracts") {
+    return futures::DurationHedgeContracts(
+        in["portfolio_value"], in["portfolio_duration"], in["futures_value"],
+        in["futures_duration"]);
+  }
+  if (kind == "swap_fixed_leg") {
+    return pricers::FixedLegBondValue(ParseSwap(in["swap"]),
+                                      ParseCurve(in["curve"]));
+  }
+  if (kind == "swap_floating_leg") {
+    return pricers::FloatingLegBondValue(ParseSwap(in["swap"]),
+                                         ParseCurve(in["curve"]));
+  }
+  if (kind == "swap_value") {
+    return pricers::SwapValue(ParseSwap(in["swap"]), ParseCurve(in["curve"]),
+                              instruments::Side::kLong);
+  }
+  if (kind == "swap_value_as_fras") {
+    return pricers::SwapValueAsFras(ParseSwap(in["swap"]),
+                                    ParseCurve(in["curve"]),
+                                    instruments::Side::kLong);
+  }
+  if (kind == "currency_swap_value") {
+    const auto& j = in["swap"];
+    const instruments::CurrencySwap swap{
+        .domestic_notional = j["domestic_notional"],
+        .domestic_rate = j["domestic_rate"],
+        .foreign_notional = j["foreign_notional"],
+        .foreign_rate = j["foreign_rate"],
+        .frequency = j["frequency"],
+        .payment_times = j["payment_times"].get<std::vector<double>>()};
+    return pricers::CurrencySwapValue(
+        swap, curves::ZeroCurve::Flat(in["domestic_rate"]),
+        curves::ZeroCurve::Flat(in["foreign_rate"]), in["spot"],
+        instruments::Side::kLong);
+  }
+  if (kind == "comparative_advantage") {
+    return pricers::ComparativeAdvantageGain(in["fixed_a"], in["fixed_b"],
+                                             in["floating_spread_a"],
+                                             in["floating_spread_b"]);
+  }
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -132,6 +253,24 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
           curve.ForwardRate(curve.times()[i - 1], curve.times()[i]));
     }
     return forwards;
+  }
+  if (kind == "margin_balances" || kind == "margin_calls") {
+    const auto prices = in["prices"].get<std::vector<double>>();
+    std::vector<double> out;
+    for (const auto& day :
+         futures::SimulateMarginAccount(ParseMarginSpec(in), prices)) {
+      out.push_back(kind == "margin_calls" ? day.margin_call : day.balance);
+    }
+    return out;
+  }
+  if (kind == "cheapest_to_deliver_costs") {
+    const double f = in["futures"];
+    std::vector<double> out;
+    for (const auto& b : in["bonds"]) {
+      const futures::DeliverableBond bond{b[0], b[1]};
+      out.push_back(futures::FindCheapestToDeliver(f, {&bond, 1})->cost);
+    }
+    return out;
   }
   FAIL("unknown golden case kind: " << kind);
   return {};
@@ -157,6 +296,18 @@ void RunChapter(int chapter) {
     }
   }
 }
+
+TEST_CASE("Golden: Chapter 2 futures markets", "[golden][ch02]") {
+  RunChapter(2);
+}
+
+TEST_CASE("Golden: Chapter 3 hedging", "[golden][ch03]") { RunChapter(3); }
+
+TEST_CASE("Golden: Chapter 6 interest rate futures", "[golden][ch06]") {
+  RunChapter(6);
+}
+
+TEST_CASE("Golden: Chapter 7 swaps", "[golden][ch07]") { RunChapter(7); }
 
 TEST_CASE("Golden: Chapter 4 interest rates", "[golden][ch04]") {
   RunChapter(4);

@@ -10,13 +10,37 @@ import sys
 from ofod_cpp import _core
 
 core = _core.core
+credit = _core.credit
 curves = _core.curves
+futures = _core.futures
 instruments = _core.instruments
 math = _core.math
 pricers = _core.pricers
+risk = _core.risk
+stats = _core.stats
 
 # Make `import ofod_cpp.core` work like it does for the pure-Python package.
-for _name in ("core", "curves", "instruments", "math", "pricers"):
+for _name in (
+    "core",
+    "credit",
+    "curves",
+    "futures",
+    "instruments",
+    "math",
+    "pricers",
+    "risk",
+    "stats",
+):
     sys.modules[f"{__name__}.{_name}"] = getattr(_core, _name)
 
-__all__ = ["core", "curves", "instruments", "math", "pricers"]
+__all__ = [
+    "core",
+    "credit",
+    "curves",
+    "futures",
+    "instruments",
+    "math",
+    "pricers",
+    "risk",
+    "stats",
+]

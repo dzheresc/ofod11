@@ -1,0 +1,27 @@
+{
+  "chapter": 6,
+  "title": "Interest rate futures",
+  "cases": [
+    {"id": "s6_1_quote", "ref": "Section 6.1, quote 95-16", "kind": "parse_thirty_seconds",
+     "inputs": {"quote": "95-16"}, "expected": 95.5, "tol": 1e-12},
+    {"id": "s6_1_cash_price", "ref": "Section 6.1, 11% bond, 54 of 181 days accrued", "kind": "treasury_cash_price",
+     "inputs": {"quoted": "95-16", "last_coupon": [2026, 1, 10], "next_coupon": [2026, 7, 10], "settlement": [2026, 3, 5], "coupon": 5.5},
+     "expected": 97.1409, "tol": 0.00005},
+    {"id": "s6_2_cf_10pct", "ref": "Section 6.2, 10% coupon, 20 years 2 months", "kind": "conversion_factor",
+     "inputs": {"coupon_rate": 0.10, "years": 20.1666666667}, "expected": 1.4623, "tol": 0.00005},
+    {"id": "s6_2_cf_8pct", "ref": "Section 6.2, 8% coupon, 18 years 4 months", "kind": "conversion_factor",
+     "inputs": {"coupon_rate": 0.08, "years": 18.3333333333}, "expected": 1.2199, "tol": 0.00005},
+    {"id": "s6_2_ctd", "ref": "Section 6.2, cheapest-to-deliver with futures at 93-08", "kind": "cheapest_to_deliver_costs",
+     "inputs": {"futures": 93.25, "bonds": [[99.50, 1.0382], [143.50, 1.5188], [119.75, 1.2615]]},
+     "expected": [2.69, 1.87, 2.12], "tol": 0.005},
+    {"id": "s6_2_futures_quote", "ref": "Section 6.2, quoted futures price from the CTD bond", "kind": "treasury_futures_quote",
+     "inputs": {"quoted_bond": 115, "accrued_now": 1.978021978, "coupon": 6, "coupon_time": 0.334246575, "rate": 0.10,
+                "t": 0.739726027, "accrued_at_delivery": 4.852459016, "conversion_factor": 1.6},
+     "expected": 71.79, "tol": 0.005},
+    {"id": "s6_3_convexity", "ref": "Section 6.3, sigma 1.2%, t1 = 8, t2 = 8.25", "kind": "convexity_adjustment",
+     "inputs": {"sigma": 0.012, "t1": 8, "t2": 8.25}, "expected": 0.00475, "tol": 0.000005},
+    {"id": "s6_4_duration_hedge", "ref": "Section 6.4, $10m portfolio, duration 6.8, futures 93-02, CTD duration 9.2", "kind": "duration_hedge_contracts",
+     "inputs": {"portfolio_value": 10000000, "portfolio_duration": 6.8, "futures_value": 93062.5, "futures_duration": 9.2},
+     "expected": 79.42, "tol": 0.005}
+  ]
+}
