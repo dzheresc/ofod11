@@ -589,6 +589,91 @@ def _evaluate_m6(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _garch(lib: types.ModuleType, i: dict[str, Any]) -> Any:
+    return lib.stats.Garch11(i["omega"], i["alpha"], i["beta"])
+
+
+def _evaluate_m7(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 22 and 23; returns None for other kinds."""
+    r, st = lib.risk, lib.stats
+    if kind == "normal_var":
+        return r.scale_to_horizon(
+            r.normal_var(i["sd"], i["confidence"]), i["days"]
+        )
+    if kind == "normal_es":
+        return r.normal_expected_shortfall(i["sd"], i["confidence"])
+    if kind in ("portfolio_std_dev", "portfolio_var"):
+        sd = r.portfolio_std_dev(i["exposures"], i["vols"], i["correlation"])
+        if kind == "portfolio_std_dev":
+            return sd
+        return r.scale_to_horizon(r.normal_var(sd, i["confidence"]), i["days"])
+    if kind == "historical_var":
+        return r.historical_var(i["losses"], i["confidence"])
+    if kind == "historical_es":
+        return r.historical_expected_shortfall(i["losses"], i["confidence"])
+    if kind == "volatility_adjusted_changes":
+        return r.volatility_adjusted_changes(
+            i["changes"], i["vols"], i["current_vol"]
+        )
+    if kind == "cornish_fisher_var":
+        moments = r.Moments(i["mean"], i["std_dev"], i["skewness"])
+        return r.cornish_fisher_var(moments, i["confidence"])
+    if kind == "delta_gamma_var":
+        moments = r.delta_gamma_moments(i["delta"], i["gamma"], i["sd_change"])
+        return r.cornish_fisher_var(moments, i["confidence"])
+    if kind == "kupiec":
+        return r.kupiec_statistic(i["observations"], i["exceptions"], i["p"])
+    if kind == "binomial_tail":
+        return r.binomial_tail_probability(i["n"], i["m"], i["p"])
+    if kind == "pca_std_dev":
+        return r.pca_std_dev(i["exposures"], i["loadings"], i["factor_sds"])
+    if kind == "pca_variances":
+        return list(r.principal_components(i["observations"]).variances)
+    if kind == "pca_loading":
+        pca = r.principal_components(i["observations"])
+        return list(pca.loadings[i["factor"]])
+    if kind == "ewma_vol":
+        v = st.ewma_variance_update(i["vol"] ** 2, i["ret"], i["lambda"])
+        return math.sqrt(v)
+    if kind == "garch_long_run_variance":
+        return _garch(lib, i).long_run_variance()
+    if kind == "garch_update_vol":
+        return math.sqrt(_garch(lib, i).update(i["vol"] ** 2, i["ret"]))
+    if kind == "garch_expected_variance":
+        return _garch(lib, i).expected_variance(i["vol"] ** 2, i["days"])
+    if kind == "garch_term_vol":
+        return _garch(lib, i).term_structure_volatility(
+            i["vol"] ** 2, i["days"]
+        )
+    if kind == "ewma_correlation":
+        vx, vy, lam = i["vol_x"], i["vol_y"], i["lambda"]
+        cov = st.ewma_covariance_update(
+            i["rho"] * vx * vy, i["ret_x"], i["ret_y"], lam
+        )
+        var_x = st.ewma_variance_update(vx * vx, i["ret_x"], lam)
+        var_y = st.ewma_variance_update(vy * vy, i["ret_y"], lam)
+        return cov / math.sqrt(var_x * var_y)
+    if kind == "is_psd":
+        return 1.0 if st.is_positive_semidefinite(i["matrix"]) else 0.0
+    if kind == "min_eigenvalue":
+        return lib.math.symmetric_eigen(i["matrix"]).values[-1]
+    if kind == "garch_fit":
+        fit = st.fit_garch11(i["returns"])
+        return [fit.omega * 1e6, fit.alpha, fit.beta]
+    if kind == "garch_fit_log_likelihood":
+        return st.fit_garch11(i["returns"]).log_likelihood(i["returns"])
+    if kind == "ewma_log_likelihood":
+        return st.ewma_log_likelihood(i["returns"], i["lambda"])
+    if kind in ("ljung_box_squared", "ljung_box_garch"):
+        u = i["returns"]
+        v = [1.0] * len(u)
+        if kind == "ljung_box_garch":
+            v = list(st.fit_garch11(u).variances(u))
+        z = [u[k] * u[k] / v[k] for k in range(1, len(u))]
+        return st.ljung_box(z, i["lags"])
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -673,6 +758,7 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         _evaluate_m4,
         _evaluate_m5,
         _evaluate_m6,
+        _evaluate_m7,
     ):
         result = extra(lib, kind, i)
         if result is not None:

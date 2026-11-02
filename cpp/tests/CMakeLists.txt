@@ -7,6 +7,9 @@ add_executable(ofod_tests
   credit/tranche_test.cc
   futures/futures_test.cc
   risk/hedging_test.cc
+  risk/var_test.cc
+  stats/volatility_test.cc
+  math/linalg_test.cc
   stats/descriptive_test.cc
   pricers/swap_pricer_test.cc
   curves/bond_bootstrap_test.cc

@@ -25,6 +25,7 @@
 #include "ofod/instruments/cash_flow.h"
 #include "ofod/instruments/option.h"
 #include "ofod/instruments/portfolio.h"
+#include "ofod/math/linalg.h"
 #include "ofod/math/normal.h"
 #include "ofod/models/brownian.h"
 #include "ofod/pricers/binomial_tree.h"
@@ -40,7 +41,9 @@
 #include "ofod/random/normal_generator.h"
 #include "ofod/random/sobol.h"
 #include "ofod/risk/hedging.h"
+#include "ofod/risk/var.h"
 #include "ofod/stats/descriptive.h"
+#include "ofod/stats/volatility.h"
 #include "ofod/strategies/strategies.h"
 
 namespace ofod {
@@ -283,6 +286,159 @@ std::optional<std::vector<double>> EvaluateM6Vector(const std::string& kind,
                                             ParseExposure(in["option2"]));
     REQUIRE(h.has_value());
     return std::vector<double>{h->option1, h->option2, h->underlying};
+  }
+  return std::nullopt;
+}
+
+stats::Garch11 ParseGarch(const json& in) {
+  return {.omega = in["omega"], .alpha = in["alpha"], .beta = in["beta"]};
+}
+
+// Chapters 22 and 23; std::nullopt when `kind` is not one of theirs.
+std::optional<double> EvaluateM7(const std::string& kind, const json& in) {
+  if (kind == "normal_var") {
+    return risk::ScaleToHorizon(risk::NormalVar(in["sd"], in["confidence"]),
+                                in["days"]);
+  }
+  if (kind == "normal_es") {
+    return risk::NormalExpectedShortfall(in["sd"], in["confidence"]);
+  }
+  if (kind == "portfolio_std_dev" || kind == "portfolio_var") {
+    const auto exposures = in["exposures"].get<std::vector<double>>();
+    const auto vols = in["vols"].get<std::vector<double>>();
+    const auto sd = risk::PortfolioStdDev(
+        exposures, vols, in["correlation"].get<math::Matrix>());
+    REQUIRE(sd.has_value());
+    if (kind == "portfolio_std_dev") return *sd;
+    return risk::ScaleToHorizon(risk::NormalVar(*sd, in["confidence"]),
+                                in["days"]);
+  }
+  if (kind == "historical_var" || kind == "historical_es") {
+    const auto losses = in["losses"].get<std::vector<double>>();
+    const auto v =
+        kind == "historical_var"
+            ? risk::HistoricalVar(losses, in["confidence"])
+            : risk::HistoricalExpectedShortfall(losses, in["confidence"]);
+    REQUIRE(v.has_value());
+    return *v;
+  }
+  if (kind == "cornish_fisher_var") {
+    return risk::CornishFisherVar({.mean = in["mean"],
+                                   .std_dev = in["std_dev"],
+                                   .skewness = in["skewness"]},
+                                  in["confidence"]);
+  }
+  if (kind == "delta_gamma_var") {
+    return risk::CornishFisherVar(
+        risk::DeltaGammaMoments(in["delta"], in["gamma"], in["sd_change"]),
+        in["confidence"]);
+  }
+  if (kind == "kupiec") {
+    return risk::KupiecStatistic(in["observations"], in["exceptions"], in["p"]);
+  }
+  if (kind == "binomial_tail") {
+    return risk::BinomialTailProbability(in["n"], in["m"], in["p"]);
+  }
+  if (kind == "pca_std_dev") {
+    const auto exposures = in["exposures"].get<std::vector<double>>();
+    const auto sds = in["factor_sds"].get<std::vector<double>>();
+    const auto sd =
+        risk::PcaStdDev(exposures, in["loadings"].get<math::Matrix>(), sds);
+    REQUIRE(sd.has_value());
+    return *sd;
+  }
+  if (kind == "ewma_vol") {
+    const double vol = in["vol"];
+    return std::sqrt(
+        stats::EwmaVarianceUpdate(vol * vol, in["ret"], in["lambda"]));
+  }
+  if (kind == "garch_long_run_variance") {
+    return ParseGarch(in).LongRunVariance();
+  }
+  if (kind == "garch_update_vol") {
+    const double vol = in["vol"];
+    return std::sqrt(ParseGarch(in).Update(vol * vol, in["ret"]));
+  }
+  if (kind == "garch_expected_variance") {
+    const double vol = in["vol"];
+    return ParseGarch(in).ExpectedVariance(vol * vol, in["days"]);
+  }
+  if (kind == "garch_term_vol") {
+    const double vol = in["vol"];
+    return ParseGarch(in).TermStructureVolatility(vol * vol, in["days"]);
+  }
+  if (kind == "ewma_correlation") {
+    const double vx = in["vol_x"];
+    const double vy = in["vol_y"];
+    const double lambda = in["lambda"];
+    const double cov = stats::EwmaCovarianceUpdate(
+        in["rho"].get<double>() * vx * vy, in["ret_x"], in["ret_y"], lambda);
+    const double var_x =
+        stats::EwmaVarianceUpdate(vx * vx, in["ret_x"], lambda);
+    const double var_y =
+        stats::EwmaVarianceUpdate(vy * vy, in["ret_y"], lambda);
+    return cov / std::sqrt(var_x * var_y);
+  }
+  if (kind == "is_psd") {
+    return stats::IsPositiveSemidefinite(in["matrix"].get<math::Matrix>())
+               ? 1.0
+               : 0.0;
+  }
+  if (kind == "min_eigenvalue") {
+    const auto e = math::SymmetricEigen(in["matrix"].get<math::Matrix>());
+    REQUIRE(e.has_value());
+    return e->values.back();
+  }
+  if (kind == "garch_fit_log_likelihood") {
+    const auto u = in["returns"].get<std::vector<double>>();
+    const auto fit = stats::FitGarch11(u);
+    REQUIRE(fit.has_value());
+    return fit->LogLikelihood(u);
+  }
+  if (kind == "ewma_log_likelihood") {
+    const auto u = in["returns"].get<std::vector<double>>();
+    return stats::EwmaLogLikelihood(u, in["lambda"]);
+  }
+  if (kind == "ljung_box_squared" || kind == "ljung_box_garch") {
+    const auto u = in["returns"].get<std::vector<double>>();
+    std::vector<double> v(u.size(), 1.0);
+    if (kind == "ljung_box_garch") {
+      const auto fit = stats::FitGarch11(u);
+      REQUIRE(fit.has_value());
+      v = fit->Variances(u);
+    }
+    std::vector<double> z;
+    for (std::size_t i = 1; i < u.size(); ++i) z.push_back(u[i] * u[i] / v[i]);
+    const auto q = stats::LjungBox(z, in["lags"]);
+    REQUIRE(q.has_value());
+    return *q;
+  }
+  return std::nullopt;
+}
+
+// Vector cases of chapters 22 and 23.
+std::optional<std::vector<double>> EvaluateM7Vector(const std::string& kind,
+                                                    const json& in) {
+  if (kind == "volatility_adjusted_changes") {
+    const auto changes = in["changes"].get<std::vector<double>>();
+    const auto vols = in["vols"].get<std::vector<double>>();
+    auto out =
+        risk::VolatilityAdjustedChanges(changes, vols, in["current_vol"]);
+    REQUIRE(out.has_value());
+    return out;
+  }
+  if (kind == "pca_variances" || kind == "pca_loading") {
+    auto pca =
+        risk::PrincipalComponents(in["observations"].get<math::Matrix>());
+    REQUIRE(pca.has_value());
+    if (kind == "pca_variances") return pca->variances;
+    return pca->loadings[in["factor"].get<std::size_t>()];
+  }
+  if (kind == "garch_fit") {
+    const auto u = in["returns"].get<std::vector<double>>();
+    const auto fit = stats::FitGarch11(u);
+    REQUIRE(fit.has_value());
+    return std::vector<double>{fit->omega * 1e6, fit->alpha, fit->beta};
   }
   return std::nullopt;
 }
@@ -586,6 +742,7 @@ double EvaluateScalar(const std::string& kind, const json& in) {
   }
   if (kind == "norm_inv") return math::NormInv(in["p"]);
   if (const auto v = EvaluateM6(kind, in)) return *v;
+  if (const auto v = EvaluateM7(kind, in)) return *v;
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -673,6 +830,7 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
     return out;
   }
   if (auto v = EvaluateM6Vector(kind, in)) return *std::move(v);
+  if (auto v = EvaluateM7Vector(kind, in)) return *std::move(v);
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -756,6 +914,15 @@ TEST_CASE("Golden: Chapter 20 volatility smiles", "[golden][ch20]") {
 
 TEST_CASE("Golden: Chapter 21 numerical procedures", "[golden][ch21]") {
   RunChapter(21);
+}
+
+TEST_CASE("Golden: Chapter 22 value at risk", "[golden][ch22]") {
+  RunChapter(22);
+}
+
+TEST_CASE("Golden: Chapter 23 volatilities and correlations",
+          "[golden][ch23]") {
+  RunChapter(23);
 }
 
 TEST_CASE("Golden: Chapter 4 interest rates", "[golden][ch04]") {

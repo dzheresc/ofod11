@@ -5,6 +5,10 @@ add_library(ofod
   src/futures/rate_futures.cc
   src/futures/treasury.cc
   src/risk/hedging.cc
+  src/risk/var.cc
+  src/stats/volatility.cc
+  src/math/linalg.cc
+  src/math/optimize.cc
   src/stats/descriptive.cc
   src/curves/swap_bootstrap.cc
   src/pricers/swap_pricer.cc
