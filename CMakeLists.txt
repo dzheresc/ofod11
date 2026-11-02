@@ -5,6 +5,7 @@ project(ofod11 VERSION 0.1.0 LANGUAGES CXX
 
 option(OFOD_BUILD_TESTS "Build C++ tests" ON)
 option(OFOD_BUILD_BENCH "Build benchmarks" OFF)
+option(OFOD_BUILD_CHAPTERS "Build chapter examples" ON)
 option(OFOD_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -22,4 +23,8 @@ add_subdirectory(cpp)
 if(OFOD_BUILD_TESTS)
   enable_testing()
   add_subdirectory(cpp/tests)
+endif()
+
+if(OFOD_BUILD_CHAPTERS)
+  add_subdirectory(chapters)
 endif()

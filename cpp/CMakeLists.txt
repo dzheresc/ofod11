@@ -1,5 +1,14 @@
 add_library(ofod
+  src/core/compounding.cc
+  src/core/date.cc
+  src/curves/bond_bootstrap.cc
+  src/curves/zero_curve.cc
+  src/instruments/bond.cc
+  src/math/interpolation.cc
   src/math/normal.cc
+  src/pricers/bond_pricer.cc
+  src/pricers/forward_pricer.cc
+  src/pricers/fra_pricer.cc
 )
 add_library(ofod::ofod ALIAS ofod)
 
