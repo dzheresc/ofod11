@@ -1,0 +1,24 @@
+{
+  "name": "ofod11",
+  "dockerComposeFile": ["../docker/compose.yaml"],
+  "service": "dev",
+  "workspaceFolder": "/develop/ofod11",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter"
+      ],
+      "settings": {
+        "cmake.useCMakePresets": "always",
+        "python.defaultInterpreterPath": "/develop/ofod11/.venv/bin/python"
+      }
+    }
+  },
+  "postCreateCommand": "./tools/bootstrap.sh"
+}

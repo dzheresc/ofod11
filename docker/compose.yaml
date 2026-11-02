@@ -1,0 +1,38 @@
+# Usage (from C:\develop\ofod11 in PowerShell):
+#   docker compose -f docker/compose.yaml build
+#   docker compose -f docker/compose.yaml run --rm dev ./tools/bootstrap.sh
+#   docker compose -f docker/compose.yaml run --rm dev bash
+# DEVELOP_DIR defaults to C:/develop; override it to mount another folder.
+name: ofod11
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ofod11-dev:latest
+    volumes:
+      - ${DEVELOP_DIR:-C:/develop}:/develop
+      # Build output and caches stay in named volumes: fast, and off the Windows file system.
+      - ofod11-build:/develop/ofod11/build
+      - ofod11-venv:/develop/ofod11/.venv
+      - ccache:/root/.cache/ccache
+      - vcpkg-cache:/root/.cache/vcpkg
+      - uv-cache:/root/.cache/uv
+    working_dir: /develop/ofod11
+    cap_add: [SYS_PTRACE, PERFMON]
+    security_opt: [seccomp=unconfined]
+    ports: ["8888:8888"]
+    stdin_open: true
+    tty: true
+
+  profile:
+    extends: dev
+    privileged: true
+
+volumes:
+  ofod11-build: {}
+  ofod11-venv: {}
+  ccache: {}
+  vcpkg-cache: {}
+  uv-cache: {}

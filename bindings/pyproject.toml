@@ -1,0 +1,22 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.2"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "ofod_cpp"
+version = "0.1.0"
+description = "Python bindings for the ofod11 C++ library"
+requires-python = ">=3.12"
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "hypothesis>=6.100"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "../build/bindings/{wheel_tag}"
+wheel.packages = ["ofod_cpp"]
+cmake.build-type = "Release"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

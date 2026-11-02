@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ofod"
+version = "0.1.0"
+description = "Pure-Python implementation of the Hull OFOD code companion"
+requires-python = ">=3.12"
+dependencies = ["numpy>=1.26", "scipy>=1.11"]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.8", "pandas>=2.1"]
+dev = ["pytest>=8", "hypothesis>=6.100", "ruff>=0.6", "mypy>=1.11"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ofod"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
