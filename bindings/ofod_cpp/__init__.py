@@ -15,7 +15,9 @@ curves = _core.curves
 futures = _core.futures
 instruments = _core.instruments
 math = _core.math
+models = _core.models
 pricers = _core.pricers
+random = _core.random
 risk = _core.risk
 stats = _core.stats
 strategies = _core.strategies
@@ -28,7 +30,9 @@ for _name in (
     "futures",
     "instruments",
     "math",
+    "models",
     "pricers",
+    "random",
     "risk",
     "stats",
     "strategies",
@@ -42,7 +46,9 @@ __all__ = [
     "futures",
     "instruments",
     "math",
+    "models",
     "pricers",
+    "random",
     "risk",
     "stats",
     "strategies",

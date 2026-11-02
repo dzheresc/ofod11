@@ -1,0 +1,194 @@
+{
+  "chapter": 15,
+  "cases": [
+    {
+      "id": "lognormal_ci",
+      "ref": "Example 15.1: S0=40, mu=16%, sigma=20%, T=0.5 (book rounds ln moments)",
+      "kind": "gbm_confidence_interval",
+      "inputs": {
+        "s0": 40.0,
+        "drift": 0.16,
+        "volatility": 0.2,
+        "t": 0.5,
+        "z": 1.96
+      },
+      "expected": [
+        32.55,
+        56.56
+      ],
+      "tol": 0.06
+    },
+    {
+      "id": "lognormal_mean",
+      "ref": "Example 15.2: E(S_T) = 43.33",
+      "kind": "gbm_expected_value",
+      "inputs": {
+        "s0": 40.0,
+        "drift": 0.16,
+        "volatility": 0.2,
+        "t": 0.5
+      },
+      "expected": 43.33,
+      "tol": 0.005
+    },
+    {
+      "id": "lognormal_variance",
+      "ref": "Example 15.2: var(S_T) = 37.93",
+      "kind": "gbm_variance",
+      "inputs": {
+        "s0": 40.0,
+        "drift": 0.16,
+        "volatility": 0.2,
+        "t": 0.5
+      },
+      "expected": 37.93,
+      "tol": 0.005
+    },
+    {
+      "id": "historical_vol",
+      "ref": "Table 15.1: 21 daily closes, 252 trading days",
+      "kind": "historical_volatility",
+      "inputs": {
+        "prices": [
+          20.0,
+          20.1,
+          19.9,
+          20.0,
+          20.5,
+          20.25,
+          20.9,
+          20.9,
+          20.9,
+          20.75,
+          20.75,
+          21.0,
+          21.1,
+          20.9,
+          20.9,
+          21.25,
+          21.4,
+          21.4,
+          21.25,
+          21.75,
+          22.0
+        ],
+        "periods_per_year": 252
+      },
+      "expected": 0.193,
+      "tol": 0.0005
+    },
+    {
+      "id": "bsm_call",
+      "ref": "Example 15.6: S0=42, K=40, r=10%, sigma=20%, T=0.5",
+      "kind": "bsm_price",
+      "inputs": {
+        "type": "call",
+        "spot": 42.0,
+        "strike": 40.0,
+        "rate": 0.1,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.5
+      },
+      "expected": 4.76,
+      "tol": 0.005
+    },
+    {
+      "id": "bsm_put",
+      "ref": "Example 15.6 put",
+      "kind": "bsm_price",
+      "inputs": {
+        "type": "put",
+        "spot": 42.0,
+        "strike": 40.0,
+        "rate": 0.1,
+        "yield": 0.0,
+        "volatility": 0.2,
+        "t": 0.5
+      },
+      "expected": 0.81,
+      "tol": 0.005
+    },
+    {
+      "id": "implied_vol",
+      "ref": "Ch 15.11: c=1.875, S0=21, K=20, r=10%, T=0.25",
+      "kind": "implied_volatility",
+      "inputs": {
+        "type": "call",
+        "price": 1.875,
+        "spot": 21.0,
+        "strike": 20.0,
+        "rate": 0.1,
+        "yield": 0.0,
+        "t": 0.25
+      },
+      "expected": 0.235,
+      "tol": 0.0005
+    },
+    {
+      "id": "escrowed_dividends",
+      "ref": "Example 15.10: S0=40, K=40, r=9%, sigma=30%, T=0.5, 0.50 at 2m and 5m",
+      "kind": "bsm_price_with_dividends",
+      "inputs": {
+        "type": "call",
+        "spot": 40.0,
+        "strike": 40.0,
+        "rate": 0.09,
+        "volatility": 0.3,
+        "t": 0.5,
+        "dividends": [
+          [
+            0.1666666666667,
+            0.5
+          ],
+          [
+            0.4166666666667,
+            0.5
+          ]
+        ]
+      },
+      "expected": 3.67,
+      "tol": 0.005
+    },
+    {
+      "id": "black_approximation",
+      "ref": "Example 15.11: Black's approximation for the same American call",
+      "kind": "black_american_call",
+      "inputs": {
+        "spot": 40.0,
+        "strike": 40.0,
+        "rate": 0.09,
+        "volatility": 0.3,
+        "t": 0.5,
+        "dividends": [
+          [
+            0.1666666666667,
+            0.5
+          ],
+          [
+            0.4166666666667,
+            0.5
+          ]
+        ]
+      },
+      "expected": 3.67,
+      "tol": 0.005
+    },
+    {
+      "id": "warrant",
+      "ref": "Example 15.9: 1m shares at 40, 200k warrants, K=60, T=5, r=3%, sigma=30%",
+      "kind": "warrant_price",
+      "inputs": {
+        "spot": 40.0,
+        "strike": 60.0,
+        "rate": 0.03,
+        "volatility": 0.3,
+        "t": 5.0,
+        "shares": 1000000,
+        "warrants": 200000
+      },
+      "expected": 5.87,
+      "tol": 0.005
+    }
+  ]
+}

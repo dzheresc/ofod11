@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <span>
+#include <vector>
 
 namespace ofod::stats {
 
@@ -36,6 +37,15 @@ struct Regression {
 // Ordinary least squares fit of y = intercept + slope * x.
 [[nodiscard]] std::optional<Regression> LinearRegression(
     std::span<const double> x, std::span<const double> y);
+
+// ln(S_i / S_{i-1}) for consecutive prices (Ch 15.4).
+[[nodiscard]] std::vector<double> LogReturns(std::span<const double> prices);
+
+// Annualised volatility: the sample standard deviation of log returns times
+// sqrt(periods_per_year), e.g. 252 for daily data (Ch 15.4). Returns
+// std::nullopt with fewer than three prices.
+[[nodiscard]] std::optional<double> HistoricalVolatility(
+    std::span<const double> prices, double periods_per_year);
 
 }  // namespace ofod::stats
 

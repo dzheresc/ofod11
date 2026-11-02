@@ -19,14 +19,19 @@
 #include "ofod/futures/rate_futures.h"
 #include "ofod/futures/treasury.h"
 #include "ofod/instruments/bond.h"
+#include "ofod/instruments/cash_flow.h"
 #include "ofod/instruments/option.h"
 #include "ofod/instruments/portfolio.h"
+#include "ofod/models/brownian.h"
 #include "ofod/pricers/binomial_tree.h"
+#include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
 #include "ofod/pricers/forward_pricer.h"
 #include "ofod/pricers/swap_pricer.h"
+#include "ofod/random/normal_generator.h"
 #include "ofod/risk/hedging.h"
+#include "ofod/stats/descriptive.h"
 #include "ofod/strategies/strategies.h"
 
 namespace ofod {
@@ -121,6 +126,21 @@ std::optional<pricers::TreeResult> EvaluateTree(const json& in) {
   return pricers::PriceTree(
       option, in["spot"], rate, steps,
       {up, down, pricers::RiskNeutralProbability(up, down, growth)});
+}
+
+instruments::OptionType ParseType(const json& j) {
+  return j == "call" ? instruments::OptionType::kCall
+                     : instruments::OptionType::kPut;
+}
+
+std::vector<instruments::CashFlow> ParseFlows(const json& j) {
+  std::vector<instruments::CashFlow> flows;
+  for (const auto& f : j) flows.push_back({f[0], f[1]});
+  return flows;
+}
+
+models::GeometricBrownianMotion ParseGbm(const json& in) {
+  return {.drift = in["drift"], .volatility = in["volatility"]};
 }
 
 // Returns the value the library computes for one scalar case.
@@ -320,6 +340,57 @@ double EvaluateScalar(const std::string& kind, const json& in) {
     REQUIRE(result.has_value());
     return result->price;
   }
+  if (kind == "gbm_expected_value") {
+    return ParseGbm(in).ExpectedValue(in["s0"], in["t"]);
+  }
+  if (kind == "gbm_variance") return ParseGbm(in).Variance(in["s0"], in["t"]);
+  if (kind == "historical_volatility") {
+    const auto vol = stats::HistoricalVolatility(
+        in["prices"].get<std::vector<double>>(), in["periods_per_year"]);
+    REQUIRE(vol.has_value());
+    return *vol;
+  }
+  if (kind == "bsm_price") {
+    return pricers::BsmPrice(ParseType(in["type"]), in["spot"], in["strike"],
+                             in["rate"], in["yield"], in["volatility"],
+                             in["t"]);
+  }
+  if (kind == "implied_volatility") {
+    const auto vol = pricers::ImpliedVolatility(
+        ParseType(in["type"]), in["price"], in["spot"], in["strike"],
+        in["rate"], in["yield"], in["t"]);
+    REQUIRE(vol.has_value());
+    return *vol;
+  }
+  if (kind == "bsm_price_with_dividends") {
+    return pricers::BsmPriceWithDividends(
+        ParseType(in["type"]), in["spot"], in["strike"], in["rate"],
+        in["volatility"], in["t"], ParseFlows(in["dividends"]));
+  }
+  if (kind == "black_american_call") {
+    return pricers::BlackAmericanCallApproximation(
+        in["spot"], in["strike"], in["rate"], in["volatility"], in["t"],
+        ParseFlows(in["dividends"]));
+  }
+  if (kind == "warrant_price") {
+    return pricers::WarrantPrice(in["spot"], in["strike"], in["rate"],
+                                 in["volatility"], in["t"], in["shares"],
+                                 in["warrants"]);
+  }
+  if (kind == "garman_kohlhagen_price") {
+    return pricers::GarmanKohlhagenPrice(
+        ParseType(in["type"]), in["spot"], in["strike"], in["rate"],
+        in["foreign_rate"], in["volatility"], in["t"]);
+  }
+  if (kind == "black76_price") {
+    return pricers::Black76Price(ParseType(in["type"]), in["futures"],
+                                 in["strike"], in["rate"], in["volatility"],
+                                 in["t"]);
+  }
+  if (kind == "futures_put_from_parity") {
+    return pricers::FuturesPutFromParity(in["call"], in["futures"],
+                                         in["strike"], in["rate"], in["t"]);
+  }
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -383,6 +454,20 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
     for (double s : in["spots"]) out.push_back(portfolio.ProfitAt(s));
     return out;
   }
+  if (kind == "gbm_euler_path") {
+    return ParseGbm(in).EulerPath(in["s0"], in["dt"],
+                                  in["shocks"].get<std::vector<double>>());
+  }
+  if (kind == "gbm_confidence_interval") {
+    const auto ci = ParseGbm(in).ConfidenceInterval(in["s0"], in["t"], in["z"]);
+    return {ci.lower, ci.upper};
+  }
+  if (kind == "correlated_normals") {
+    const auto lower =
+        random::Cholesky(in["correlation"].get<random::Matrix>());
+    REQUIRE(lower.has_value());
+    return random::Correlate(*lower, in["z"].get<std::vector<double>>());
+  }
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -434,6 +519,22 @@ TEST_CASE("Golden: Chapter 12 trading strategies", "[golden][ch12]") {
 
 TEST_CASE("Golden: Chapter 13 binomial trees", "[golden][ch13]") {
   RunChapter(13);
+}
+
+TEST_CASE("Golden: Chapter 14 Wiener processes", "[golden][ch14]") {
+  RunChapter(14);
+}
+
+TEST_CASE("Golden: Chapter 15 Black-Scholes-Merton", "[golden][ch15]") {
+  RunChapter(15);
+}
+
+TEST_CASE("Golden: Chapter 17 index and currency options", "[golden][ch17]") {
+  RunChapter(17);
+}
+
+TEST_CASE("Golden: Chapter 18 futures options", "[golden][ch18]") {
+  RunChapter(18);
 }
 
 TEST_CASE("Golden: Chapter 4 interest rates", "[golden][ch04]") {

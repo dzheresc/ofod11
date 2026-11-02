@@ -11,6 +11,10 @@ NB_MODULE(_core, m) {
   ofod::bindings::BindCore(core);
   nanobind::module_ math = m.def_submodule("math", "ofod::math");
   ofod::bindings::BindMath(math);
+  nanobind::module_ random = m.def_submodule("random", "ofod::random");
+  ofod::bindings::BindRandom(random);
+  nanobind::module_ models = m.def_submodule("models", "ofod::models");
+  ofod::bindings::BindModels(models);
   nanobind::module_ instruments =
       m.def_submodule("instruments", "ofod::instruments");
   ofod::bindings::BindInstruments(instruments);

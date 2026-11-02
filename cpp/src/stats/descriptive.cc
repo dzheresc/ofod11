@@ -73,4 +73,19 @@ std::optional<Regression> LinearRegression(std::span<const double> x,
   return Regression{intercept, slope, r_squared};
 }
 
+std::vector<double> LogReturns(std::span<const double> prices) {
+  std::vector<double> out;
+  for (std::size_t i = 1; i < prices.size(); ++i) {
+    out.push_back(std::log(prices[i] / prices[i - 1]));
+  }
+  return out;
+}
+
+std::optional<double> HistoricalVolatility(std::span<const double> prices,
+                                           double periods_per_year) {
+  if (prices.size() < 3) return std::nullopt;
+  const auto returns = LogReturns(prices);
+  return std::sqrt(CovarianceOf(returns, returns) * periods_per_year);
+}
+
 }  // namespace ofod::stats

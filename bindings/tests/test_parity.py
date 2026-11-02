@@ -16,7 +16,9 @@ _SUBMODULES = (
     "futures",
     "instruments",
     "math",
+    "models",
     "pricers",
+    "random",
     "risk",
     "stats",
     "strategies",
@@ -146,3 +148,32 @@ def test_portfolio_accepts_python_payoffs() -> None:
     for lib in (ofod, ofod_cpp):
         with pytest.raises(ValueError):
             lib.strategies.replicate_payoff(0.0, [1.0], [40.0])
+
+
+@given(
+    st.sampled_from(["CALL", "PUT"]),
+    st.floats(min_value=20.0, max_value=80.0),
+    st.floats(min_value=20.0, max_value=80.0),
+    st.floats(min_value=0.05, max_value=1.0),
+    st.floats(min_value=0.05, max_value=3.0),
+)
+def test_bsm_price(
+    kind: str, spot: float, strike: float, vol: float, t: float
+) -> None:
+    def price(lib) -> float:
+        option_type = getattr(lib.instruments.OptionType, kind)
+        return lib.pricers.bsm_price(
+            option_type, spot, strike, 0.04, 0.01, vol, t
+        )
+
+    assert price(ofod_cpp) == pytest.approx(price(ofod), rel=1e-12, abs=1e-13)
+
+
+def test_gbm_paths_agree() -> None:
+    shocks = ofod.random.NormalGenerator(4).sample(50)
+    py = ofod.models.GeometricBrownianMotion(0.1, 0.3)
+    cpp = ofod_cpp.models.GeometricBrownianMotion(0.1, 0.3)
+    for method in ("euler_path", "exact_path"):
+        a = getattr(py, method)(100.0, 0.01, shocks)
+        b = getattr(cpp, method)(100.0, 0.01, shocks)
+        assert b == pytest.approx(a, rel=1e-13)

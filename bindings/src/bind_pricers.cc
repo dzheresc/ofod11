@@ -7,6 +7,7 @@
 
 #include "bindings.h"
 #include "ofod/pricers/binomial_tree.h"
+#include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
 #include "ofod/pricers/forward_pricer.h"
@@ -186,6 +187,67 @@ void BindPricers(nb::module_& m) {
       },
       nb::arg("option"), nb::arg("market"), nb::arg("steps"),
       nb::arg("scheme") = TreeScheme::kCoxRossRubinstein);
+
+  using instruments::CashFlow;
+  using instruments::OptionType;
+  m.def("bsm_d1", &pricers::BsmD1, nb::arg("spot"), nb::arg("strike"),
+        nb::arg("rate"), nb::arg("yield_"), nb::arg("volatility"),
+        nb::arg("t"));
+  m.def("bsm_d2", &pricers::BsmD2, nb::arg("spot"), nb::arg("strike"),
+        nb::arg("rate"), nb::arg("yield_"), nb::arg("volatility"),
+        nb::arg("t"));
+  m.def("bsm_price", &pricers::BsmPrice, nb::arg("option_type"),
+        nb::arg("spot"), nb::arg("strike"), nb::arg("rate"), nb::arg("yield_"),
+        nb::arg("volatility"), nb::arg("t"));
+  m.def("garman_kohlhagen_price", &pricers::GarmanKohlhagenPrice,
+        nb::arg("option_type"), nb::arg("spot"), nb::arg("strike"),
+        nb::arg("rate"), nb::arg("foreign_rate"), nb::arg("volatility"),
+        nb::arg("t"));
+  m.def("black76_price", &pricers::Black76Price, nb::arg("option_type"),
+        nb::arg("futures"), nb::arg("strike"), nb::arg("rate"),
+        nb::arg("volatility"), nb::arg("t"));
+  m.def("futures_style_option_price", &pricers::FuturesStyleOptionPrice,
+        nb::arg("option_type"), nb::arg("futures"), nb::arg("strike"),
+        nb::arg("volatility"), nb::arg("t"));
+  m.def("futures_put_from_parity", &pricers::FuturesPutFromParity,
+        nb::arg("call"), nb::arg("futures"), nb::arg("strike"), nb::arg("rate"),
+        nb::arg("t"));
+  m.def(
+      "implied_volatility",
+      [](OptionType type, double price, double spot, double strike, double rate,
+         double yield, double t) {
+        const auto vol = pricers::ImpliedVolatility(type, price, spot, strike,
+                                                    rate, yield, t);
+        if (!vol) {
+          throw nb::value_error(
+              "price outside the no-arbitrage bounds or not reproducible");
+        }
+        return *vol;
+      },
+      nb::arg("option_type"), nb::arg("price"), nb::arg("spot"),
+      nb::arg("strike"), nb::arg("rate"), nb::arg("yield_"), nb::arg("t"));
+  m.def(
+      "bsm_price_with_dividends",
+      [](OptionType type, double spot, double strike, double rate,
+         double volatility, double t, const std::vector<CashFlow>& dividends) {
+        return pricers::BsmPriceWithDividends(type, spot, strike, rate,
+                                              volatility, t, dividends);
+      },
+      nb::arg("option_type"), nb::arg("spot"), nb::arg("strike"),
+      nb::arg("rate"), nb::arg("volatility"), nb::arg("t"),
+      nb::arg("dividends"));
+  m.def(
+      "black_american_call_approximation",
+      [](double spot, double strike, double rate, double volatility, double t,
+         const std::vector<CashFlow>& dividends) {
+        return pricers::BlackAmericanCallApproximation(
+            spot, strike, rate, volatility, t, dividends);
+      },
+      nb::arg("spot"), nb::arg("strike"), nb::arg("rate"),
+      nb::arg("volatility"), nb::arg("t"), nb::arg("dividends"));
+  m.def("warrant_price", &pricers::WarrantPrice, nb::arg("spot"),
+        nb::arg("strike"), nb::arg("rate"), nb::arg("volatility"), nb::arg("t"),
+        nb::arg("shares"), nb::arg("warrants"));
 }
 
 }  // namespace ofod::bindings

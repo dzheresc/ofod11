@@ -6,7 +6,9 @@ from ofod import curves
 from ofod import futures
 from ofod import instruments
 from ofod import math
+from ofod import models
 from ofod import pricers
+from ofod import random
 from ofod import risk
 from ofod import stats
 from ofod import strategies
@@ -20,7 +22,9 @@ __all__ = [
     "futures",
     "instruments",
     "math",
+    "models",
     "pricers",
+    "random",
     "risk",
     "stats",
     "strategies",

@@ -1,0 +1,54 @@
+{
+  "chapter": 14,
+  "cases": [
+    {
+      "id": "gbm_euler_path",
+      "ref": "Table 14.1: S0=100, mu=15%, sigma=30%, dt=0.0192",
+      "kind": "gbm_euler_path",
+      "inputs": {
+        "s0": 100.0,
+        "drift": 0.15,
+        "volatility": 0.3,
+        "dt": 0.0192,
+        "shocks": [
+          0.52,
+          1.44,
+          -0.86
+        ]
+      },
+      "expected": [
+        100.0,
+        102.45,
+        108.88,
+        105.3
+      ],
+      "tol": 0.006
+    },
+    {
+      "id": "correlated_normals",
+      "ref": "Ch 14.5: eps2 = rho x1 + sqrt(1 - rho^2) x2",
+      "kind": "correlated_normals",
+      "inputs": {
+        "correlation": [
+          [
+            1.0,
+            0.6
+          ],
+          [
+            0.6,
+            1.0
+          ]
+        ],
+        "z": [
+          1.0,
+          2.0
+        ]
+      },
+      "expected": [
+        1.0,
+        2.2
+      ],
+      "tol": 1e-12
+    }
+  ]
+}

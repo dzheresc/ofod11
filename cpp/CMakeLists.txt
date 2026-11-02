@@ -21,6 +21,9 @@ add_library(ofod
   src/instruments/portfolio.cc
   src/pricers/binomial_tree.cc
   src/pricers/bounds.cc
+  src/pricers/black_scholes.cc
+  src/models/brownian.cc
+  src/random/normal_generator.cc
   src/strategies/strategies.cc
 )
 add_library(ofod::ofod ALIAS ofod)

@@ -1,0 +1,34 @@
+{
+  "chapter": 18,
+  "cases": [
+    {
+      "id": "black_put",
+      "ref": "Ch 18.4 Black crude oil put: F0=20, K=20, r=9%, sigma=25%, T=4m",
+      "kind": "black76_price",
+      "inputs": {
+        "type": "put",
+        "futures": 20.0,
+        "strike": 20.0,
+        "rate": 0.09,
+        "volatility": 0.25,
+        "t": 0.3333333333333
+      },
+      "expected": 1.12,
+      "tol": 0.005
+    },
+    {
+      "id": "futures_parity",
+      "ref": "Eq. 18.1: c=2, F0=30, K=28, r=5%, T=0.5",
+      "kind": "futures_put_from_parity",
+      "inputs": {
+        "call": 2.0,
+        "futures": 30.0,
+        "strike": 28.0,
+        "rate": 0.05,
+        "t": 0.5
+      },
+      "expected": 0.0494,
+      "tol": 5e-05
+    }
+  ]
+}
