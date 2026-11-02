@@ -15,3 +15,4 @@ convention = "google"
 [lint.isort]
 known-first-party = ["ofod", "ofod_cpp"]
 force-sort-within-sections = true
+force-single-line = true

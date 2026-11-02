@@ -1,0 +1,19 @@
+{
+  "chapter": 5,
+  "title": "Determination of forward and futures prices",
+  "cases": [
+    {"id": "s5_4_no_income", "ref": "Section 5.4, 3-month forward on a non-dividend stock", "kind": "forward_price",
+     "inputs": {"spot": 40, "rate": 0.05, "t": 0.25}, "expected": 40.50, "tol": 0.005},
+    {"id": "s5_5_known_income", "ref": "Section 5.5, 9-month forward on a coupon bond", "kind": "forward_price_with_income",
+     "inputs": {"spot": 900, "t": 0.75, "income": [{"time": 0.3333333333333333, "amount": 40}],
+                "curve": {"times": [0.3333333333333333, 0.75], "rates": [0.03, 0.04]}},
+     "expected": 886.60, "tol": 0.005},
+    {"id": "s5_6_known_yield", "ref": "Section 5.6, 6-month forward with a 4% yield (semiannual)", "kind": "forward_price_with_yield",
+     "inputs": {"spot": 25, "rate": 0.10, "yield": 0.04, "yield_frequency": 2, "t": 0.5},
+     "expected": 25.77, "tol": 0.005},
+    {"id": "s5_7_forward_price", "ref": "Section 5.7, valuing a forward contract", "kind": "forward_price",
+     "inputs": {"spot": 25, "rate": 0.10, "t": 0.5}, "expected": 26.28, "tol": 0.005},
+    {"id": "s5_7_forward_value", "ref": "Section 5.7, valuing a forward contract", "kind": "forward_value",
+     "inputs": {"spot": 25, "delivery_price": 24, "rate": 0.10, "t": 0.5}, "expected": 2.17, "tol": 0.005}
+  ]
+}
