@@ -15,7 +15,10 @@ add_executable(ofod_tests
   instruments/bond_test.cc
   instruments/option_test.cc
   instruments/payoff_test.cc
+  models/brownian_test.cc
   pricers/binomial_tree_test.cc
+  pricers/black_scholes_test.cc
+  random/normal_generator_test.cc
   pricers/bounds_test.cc
   strategies/strategies_test.cc
   math/interpolation_test.cc

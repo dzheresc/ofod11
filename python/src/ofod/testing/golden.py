@@ -289,6 +289,110 @@ def _evaluate_m3(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _otype(lib: types.ModuleType, name: str) -> Any:
+    return getattr(lib.instruments.OptionType, name.upper())
+
+
+def _flows(lib: types.ModuleType, j: list[list[float]]) -> list[Any]:
+    return [lib.instruments.CashFlow(f[0], f[1]) for f in j]
+
+
+def _evaluate_m4(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 14-18; returns None when `kind` is not one of them."""
+    p = lib.pricers
+    if kind.startswith("gbm_"):
+        gbm = lib.models.GeometricBrownianMotion(i["drift"], i["volatility"])
+        if kind == "gbm_euler_path":
+            return gbm.euler_path(i["s0"], i["dt"], i["shocks"])
+        if kind == "gbm_confidence_interval":
+            ci = gbm.confidence_interval(i["s0"], i["t"], i["z"])
+            return [ci.lower, ci.upper]
+        if kind == "gbm_expected_value":
+            return gbm.expected_value(i["s0"], i["t"])
+        if kind == "gbm_variance":
+            return gbm.variance(i["s0"], i["t"])
+    if kind == "correlated_normals":
+        lower = lib.random.cholesky(i["correlation"])
+        return lib.random.correlate(lower, i["z"])
+    if kind == "historical_volatility":
+        return lib.stats.historical_volatility(
+            i["prices"], i["periods_per_year"]
+        )
+    if kind == "bsm_price":
+        return p.bsm_price(
+            _otype(lib, i["type"]),
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["yield"],
+            i["volatility"],
+            i["t"],
+        )
+    if kind == "implied_volatility":
+        return p.implied_volatility(
+            _otype(lib, i["type"]),
+            i["price"],
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["yield"],
+            i["t"],
+        )
+    if kind == "bsm_price_with_dividends":
+        return p.bsm_price_with_dividends(
+            _otype(lib, i["type"]),
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["volatility"],
+            i["t"],
+            _flows(lib, i["dividends"]),
+        )
+    if kind == "black_american_call":
+        return p.black_american_call_approximation(
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["volatility"],
+            i["t"],
+            _flows(lib, i["dividends"]),
+        )
+    if kind == "warrant_price":
+        return p.warrant_price(
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["volatility"],
+            i["t"],
+            i["shares"],
+            i["warrants"],
+        )
+    if kind == "garman_kohlhagen_price":
+        return p.garman_kohlhagen_price(
+            _otype(lib, i["type"]),
+            i["spot"],
+            i["strike"],
+            i["rate"],
+            i["foreign_rate"],
+            i["volatility"],
+            i["t"],
+        )
+    if kind == "black76_price":
+        return p.black76_price(
+            _otype(lib, i["type"]),
+            i["futures"],
+            i["strike"],
+            i["rate"],
+            i["volatility"],
+            i["t"],
+        )
+    if kind == "futures_put_from_parity":
+        return p.futures_put_from_parity(
+            i["call"], i["futures"], i["strike"], i["rate"], i["t"]
+        )
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -367,7 +471,7 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         return p.forward_contract_value(
             f, i["delivery_price"], i["rate"], i["t"], lib.instruments.Side.LONG
         )
-    for extra in (_evaluate_m2, _evaluate_m3):
+    for extra in (_evaluate_m2, _evaluate_m3, _evaluate_m4):
         result = extra(lib, kind, i)
         if result is not None:
             return result

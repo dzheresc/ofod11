@@ -22,7 +22,9 @@ nanobind_add_module(_core NB_STATIC
   src/bind_futures.cc
   src/bind_instruments.cc
   src/bind_math.cc
+  src/bind_models.cc
   src/bind_pricers.cc
+  src/bind_random.cc
   src/bind_risk.cc
   src/bind_stats.cc
   src/bind_strategies.cc

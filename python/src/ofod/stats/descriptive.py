@@ -88,3 +88,21 @@ def linear_regression(x: Sequence[float], y: Sequence[float]) -> Regression:
     var_y = variance(y)
     r_squared = 1.0 if var_y == 0.0 else slope * cov / var_y
     return Regression(intercept, slope, r_squared)
+
+
+def log_returns(prices: Sequence[float]) -> list[float]:
+    """Returns ln(S_i / S_{i-1}) for consecutive prices (Ch 15.4)."""
+    return [math.log(b / a) for a, b in zip(prices, prices[1:], strict=False)]
+
+
+def historical_volatility(
+    prices: Sequence[float], periods_per_year: float
+) -> float:
+    """Returns the annualised volatility of log returns (Ch 15.4).
+
+    Raises:
+        ValueError: With fewer than three prices.
+    """
+    if len(prices) < 3:
+        raise ValueError("need at least three prices")
+    return std_dev(log_returns(prices)) * math.sqrt(periods_per_year)

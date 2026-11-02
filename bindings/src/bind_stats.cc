@@ -74,6 +74,17 @@ void BindStats(nb::module_& m) {
         return *fit;
       },
       nb::arg("x"), nb::arg("y"));
+
+  m.def(
+      "log_returns", [](Vec prices) { return stats::LogReturns(prices); },
+      nb::arg("prices"));
+  m.def(
+      "historical_volatility",
+      [](Vec prices, double periods_per_year) {
+        return OrThrow(stats::HistoricalVolatility(prices, periods_per_year),
+                       "need at least three prices");
+      },
+      nb::arg("prices"), nb::arg("periods_per_year"));
 }
 
 }  // namespace ofod::bindings
