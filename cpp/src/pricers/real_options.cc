@@ -54,16 +54,22 @@ template <class Terminal, class Exercise>
 double RollbackAmerican(const ProjectLattice& l, const Crr& c, double carry,
                         Terminal terminal, Exercise exercise) {
   const auto n = static_cast<std::size_t>(l.steps);
+  // Powers of u and d are tabulated once (still with std::pow, so node
+  // values are bit-for-bit those of a pow per node), as in the Ch 21 trees.
+  std::vector<double> up_pow(n + 1);
+  std::vector<double> down_pow(n + 1);
+  for (std::size_t k = 0; k <= n; ++k) {
+    up_pow[k] = std::pow(c.up, static_cast<double>(k));
+    down_pow[k] = std::pow(c.down, static_cast<double>(k));
+  }
   std::vector<double> values(n + 1);
   for (std::size_t k = 0; k <= n; ++k) {
-    const double v = l.value * std::pow(c.up, static_cast<double>(k)) *
-                     std::pow(c.down, static_cast<double>(n - k));
+    const double v = l.value * up_pow[k] * down_pow[n - k];
     values[k] = terminal(v);
   }
   for (std::size_t i = n; i-- > 0;) {
     for (std::size_t k = 0; k <= i; ++k) {
-      const double v = l.value * std::pow(c.up, static_cast<double>(k)) *
-                       std::pow(c.down, static_cast<double>(i - k));
+      const double v = l.value * up_pow[k] * down_pow[i - k];
       const double hold =
           c.discount * (c.p * values[k + 1] + (1.0 - c.p) * values[k]) +
           carry * v;

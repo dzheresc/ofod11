@@ -2,6 +2,7 @@
 
 #include "ofod/random/normal_generator.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 
@@ -40,9 +41,14 @@ std::optional<Matrix> Cholesky(const Matrix& a) {
 std::vector<double> Correlate(const Matrix& lower, std::span<const double> z) {
   std::vector<double> out(lower.size(), 0.0);
   for (std::size_t i = 0; i < lower.size(); ++i) {
-    for (std::size_t k = 0; k <= i && k < z.size(); ++k) {
-      out[i] += lower[i][k] * z[k];
-    }
+    // A local accumulator keeps the sum in a register; accumulating into
+    // out[i] made the compiler store and reload it on every term. The
+    // summation order is unchanged, so results are bit-for-bit the same.
+    const std::vector<double>& row = lower[i];
+    const std::size_t terms = std::min(i + 1, z.size());
+    double sum = 0.0;
+    for (std::size_t k = 0; k < terms; ++k) sum += row[k] * z[k];
+    out[i] = sum;
   }
   return out;
 }

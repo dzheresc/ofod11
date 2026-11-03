@@ -90,6 +90,27 @@ def test_finite_differences_converge(scheme: pricers.FdScheme) -> None:
         )
 
 
+@pytest.mark.parametrize("option_type", list(instruments.OptionType))
+@pytest.mark.parametrize(
+    "scheme", [pricers.FdScheme.IMPLICIT, pricers.FdScheme.CRANK_NICOLSON]
+)
+def test_brennan_schwartz_matches_psor(
+    option_type: instruments.OptionType, scheme: pricers.FdScheme
+) -> None:
+    option = instruments.VanillaOption(
+        option_type, instruments.Exercise.AMERICAN, 50.0, 5.0 / 12.0
+    )
+    market = pricers.TreeMarket(50.0, 0.10, 0.08, 0.40)
+    grid = pricers.FdGrid(s_max=200, price_steps=100, time_steps=50)
+    psor = pricers.price_finite_difference(
+        option, market, grid, scheme, pricers.AmericanSolver.PSOR
+    )
+    direct = pricers.price_finite_difference(
+        option, market, grid, scheme, pricers.AmericanSolver.BRENNAN_SCHWARTZ
+    )
+    assert direct == pytest.approx(psor, abs=1e-10)
+
+
 def test_dividend_tree_without_dividends_is_plain_tree() -> None:
     put = instruments.VanillaOption(
         instruments.OptionType.PUT, instruments.Exercise.AMERICAN, 52, 1.0

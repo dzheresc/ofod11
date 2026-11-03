@@ -38,8 +38,10 @@ std::optional<CommodityTree> CommodityTree::Build(
   const double m = -a * dt;
   for (int j = -tree.jmax_; j <= tree.jmax_; ++j) {
     tree.branches_.push_back(HullBranch(j, tree.jmax_, m));
+    tree.node_growth_.push_back(std::exp(j * tree.dx_));
   }
   tree.alphas_.push_back(std::log(spot));
+  tree.step_level_.push_back(spot);
   tree.p_.push_back({1.0});
   for (int i = 0; i < tree.steps_; ++i) {
     const int w = tree.Width(i);
@@ -56,10 +58,11 @@ std::optional<CommodityTree> CommodityTree::Build(
     // Choose alpha so that sum_j p_j exp(alpha + j dx) = F(0, (i + 1) dt).
     double sum = 0.0;
     for (int j = -w_next; j <= w_next; ++j) {
-      sum += next[Index(j, w_next)] * std::exp(j * tree.dx_);
+      sum += next[Index(j, w_next)] * tree.node_growth_[Index(j, tree.jmax_)];
     }
     tree.alphas_.push_back(std::log(futures[static_cast<std::size_t>(i)]) -
                            std::log(sum));
+    tree.step_level_.push_back(std::exp(tree.alphas_.back()));
     tree.p_.push_back(std::move(next));
   }
   return tree;
@@ -68,7 +71,8 @@ std::optional<CommodityTree> CommodityTree::Build(
 int CommodityTree::Width(int step) const { return std::min(step, jmax_); }
 
 double CommodityTree::Price(int step, int j) const {
-  return std::exp(alphas_[static_cast<std::size_t>(step)] + j * dx_);
+  return step_level_[static_cast<std::size_t>(step)] *
+         node_growth_[Index(j, jmax_)];
 }
 
 const Branch& CommodityTree::BranchAt(int j) const {

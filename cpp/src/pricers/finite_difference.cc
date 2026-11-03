@@ -67,6 +67,57 @@ void Psor(const std::vector<double>& lo, const std::vector<double>& mid,
   }
 }
 
+// True if the tridiagonal matrix is an M-matrix with a diagonally dominant
+// diagonal: the condition under which Brennan-Schwartz solves the LCP.
+bool IsDominantMMatrix(const std::vector<double>& lo,
+                       const std::vector<double>& mid,
+                       const std::vector<double>& hi) {
+  for (std::size_t i = 0; i < mid.size(); ++i) {
+    if (lo[i] > 0.0 || hi[i] > 0.0 || !(mid[i] >= -lo[i] - hi[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Brennan-Schwartz: one elimination sweep and one projected substitution
+// sweep. For a put the exercise region is the bottom of the grid, so the
+// system is eliminated upwards and substituted from the bottom, projecting
+// each value as it is found; a call runs the usual Thomas algorithm and
+// projects on the way back down. Exact for a single exercise boundary and
+// an M-matrix (Jaillet, Lamberton and Lapeyre, 1990).
+std::vector<double> BrennanSchwartz(std::vector<double> lo,
+                                    std::vector<double> mid,
+                                    std::vector<double> hi,
+                                    std::vector<double> rhs,
+                                    const std::vector<double>& floor,
+                                    bool exercise_at_top) {
+  const std::size_t n = rhs.size();
+  std::vector<double> x(n);
+  if (exercise_at_top) {
+    for (std::size_t i = 1; i < n; ++i) {
+      const double w = lo[i] / mid[i - 1];
+      mid[i] -= w * hi[i - 1];
+      rhs[i] -= w * rhs[i - 1];
+    }
+    x[n - 1] = std::max(floor[n - 1], rhs[n - 1] / mid[n - 1]);
+    for (std::size_t i = n - 1; i-- > 0;) {
+      x[i] = std::max(floor[i], (rhs[i] - hi[i] * x[i + 1]) / mid[i]);
+    }
+  } else {
+    for (std::size_t i = n - 1; i-- > 0;) {
+      const double w = hi[i] / mid[i + 1];
+      mid[i] -= w * lo[i + 1];
+      rhs[i] -= w * rhs[i + 1];
+    }
+    x[0] = std::max(floor[0], rhs[0] / mid[0]);
+    for (std::size_t i = 1; i < n; ++i) {
+      x[i] = std::max(floor[i], (rhs[i] - lo[i] * x[i - 1]) / mid[i]);
+    }
+  }
+  return x;
+}
+
 }  // namespace
 
 std::optional<double> PriceFiniteDifference(const VanillaOption& option,
@@ -177,10 +228,22 @@ std::optional<double> PriceFiniteDifference(const VanillaOption& option,
           x[k] = std::max(x[k], intrinsic[k + 1]);
         }
       } else if (american) {
-        x.assign(f.begin() + 1, f.end() - 1);
         const std::vector<double> floor(intrinsic.begin() + 1,
                                         intrinsic.end() - 1);
-        Psor(lo, mid, hi, rhs, floor, x);
+        const bool m_matrix = IsDominantMMatrix(lo, mid, hi);
+        if (solver == AmericanSolver::kBrennanSchwartz && m_matrix) {
+          x = BrennanSchwartz(lo, mid, hi, rhs, floor, call);
+        } else {
+          // PSOR starts from the Brennan-Schwartz solution when it applies,
+          // which leaves it one or two sweeps to confirm convergence, and
+          // from the previous time step otherwise.
+          if (m_matrix) {
+            x = BrennanSchwartz(lo, mid, hi, rhs, floor, call);
+          } else {
+            x.assign(f.begin() + 1, f.end() - 1);
+          }
+          Psor(lo, mid, hi, rhs, floor, x);
+        }
       } else {
         x = SolveTridiagonal(lo, mid, hi, rhs);
       }
