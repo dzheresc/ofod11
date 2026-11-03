@@ -1,6 +1,7 @@
-# Libraries compared with ofod by tools/compare/compare_python.py. They are
+# Libraries compared with ofod by the scripts in tools/compare/. They are
 # not dependencies of ofod; the versions are the ones in docs/COMPARISON.md.
 QuantLib==1.44
 financepy==1.1.2
 arch==8.0.0
 vollib==1.0.11
+open-source-risk-engine==1.8.17.0

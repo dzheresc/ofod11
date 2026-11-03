@@ -7,7 +7,7 @@ usage_exe "$@"
 need perf
 base="${REPORTS}/perf-$(basename "$1")-$(stamp)"
 perf record -F 999 -g -o "${base}.data" -- "$@"
-perf report -i "${base}.data" --stdio | head -60
+perf report -i "${base}.data" --stdio | sed -n 1,60p
 if command -v stackcollapse-perf.pl >/dev/null && command -v flamegraph.pl >/dev/null; then
   perf script -i "${base}.data" | stackcollapse-perf.pl | flamegraph.pl > "${base}.svg"
   echo "flame graph: ${base}.svg"

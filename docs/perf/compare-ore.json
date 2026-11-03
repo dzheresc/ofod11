@@ -1,0 +1,53 @@
+{
+  "machine": "x86_64",
+  "cpus": 22,
+  "versions": {
+    "python": "3.12.3",
+    "open-source-risk-engine": "1.8.17.0"
+  },
+  "exact_cva": 0.7363701596664319,
+  "exact_midpoint_cva": 0.7363755729768285,
+  "exact_end_cva": 0.727013817668427,
+  "rows": [
+    {
+      "library": "ofod (Python)",
+      "seconds": 0.06715315600740723,
+      "cva": 0.7216276321757689,
+      "cva_error": -0.014742527490663071,
+      "same_rule_cva_error": -0.014747940801059678,
+      "max_exposure_error": 0.7837272054146105,
+      "rms_exposure_error": 0.4566483137753571,
+      "note": ""
+    },
+    {
+      "library": "ofod_cpp",
+      "seconds": 0.05068680700787809,
+      "cva": 0.7354183837080204,
+      "cva_error": -0.0009517759584115604,
+      "same_rule_cva_error": -0.0009571892688081673,
+      "max_exposure_error": 0.43513084621255516,
+      "rms_exposure_error": 0.17624404479339176,
+      "note": ""
+    },
+    {
+      "library": "ORE (MersenneTwister)",
+      "seconds": 3.7399495389981894,
+      "cva": 0.72512264,
+      "cva_error": -0.011247519666431893,
+      "same_rule_cva_error": -0.0018911776684269466,
+      "max_exposure_error": 0.3580831453165203,
+      "rms_exposure_error": 0.17709774418000232,
+      "note": ""
+    },
+    {
+      "library": "ORE (SobolBrownianBridge)",
+      "seconds": 3.7898337509977864,
+      "cva": 0.7256495,
+      "cva_error": -0.010720659666431986,
+      "same_rule_cva_error": -0.0013643176684270397,
+      "max_exposure_error": 0.07519327072843396,
+      "rms_exposure_error": 0.044796575239690155,
+      "note": ""
+    }
+  ]
+}

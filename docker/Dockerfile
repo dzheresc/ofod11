@@ -19,6 +19,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100 \
     && ln -sf "$(ls -d /usr/lib/linux-tools/*/perf | head -n1)" /usr/local/bin/perf
 
+# FlameGraph scripts for tools/profile/perf.sh.
+ARG FLAMEGRAPH_COMMIT=41fee1f99f9276008b7cd112fca19dc3ea84ac32
+RUN git init -q /opt/FlameGraph \
+    && git -C /opt/FlameGraph fetch -q --depth 1 https://github.com/brendangregg/FlameGraph.git ${FLAMEGRAPH_COMMIT} \
+    && git -C /opt/FlameGraph checkout -q FETCH_HEAD
+ENV PATH=/opt/FlameGraph:${PATH}
+
 # uv: fast Python env and package manager
 COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /uvx /usr/local/bin/
 RUN UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool install ruff==0.6.9

@@ -23,8 +23,8 @@ cmake --preset profile && cmake --build --preset profile
 | `massif.sh` | Massif | Heap usage over time (path storage, grids) |
 | `memcheck.sh` | Memcheck | Leaks and invalid accesses (also run on every milestone) |
 | `helgrind.sh` | Helgrind | Data races in the threaded Monte Carlo runner |
-| `perf.sh` | perf | Sampling profile and flame graph; needs `--cap-add SYS_ADMIN` in Docker |
-| `heaptrack.sh` | heaptrack | Allocation hot spots |
+| `perf.sh` | perf | Sampling profile and flame graph; use the `profile` Compose service |
+| `heaptrack.sh` | heaptrack | Allocation hot spots; run it on `ofod_heap_driver`, not `ofod_bench` |
 | `bench_python.py` | timeit | The same calls through `ofod` (pure Python) and `ofod_cpp` |
 
 Example:
@@ -359,14 +359,8 @@ Every M5-M10 benchmark was re-run with the new code (in `m12.json`). The
 code they exercise is unchanged except the shared `Correlate`, and they
 sit within the host noise described above.
 
-### Postponed (needs the local machine)
-
-- `perf.sh` sampling profiles and flame graphs (perf is not in the cloud
-  container and needs `--cap-add SYS_ADMIN` in Docker) and `heaptrack.sh`.
-- The vcpkg `profile` and `profile-native` (`-march=native`) presets in
-  the project's Docker image; this pass used Ubuntu's packages for Google
-  Benchmark, Catch2 and the rest.
-- Desktop timings, to compare absolute numbers with the cloud figures.
+The items postponed here for the local machine are in the
+[desktop pass](#desktop-pass).
 
 ## Comparison follow-up: closing the gaps
 
@@ -490,7 +484,165 @@ after, same container, `profile` build, median of 5:
    unchanged for all three schemes, both exercise styles and both option
    types (checked against the previous commit).
 
-### Postponed (needs the local machine)
+Desktop timings of the three changes and `perf` profiles of the ziggurat
+loop are in the [desktop pass](#desktop-pass).
 
-- Desktop timings of the three changes, and `perf` profiles of the
-  ziggurat loop.
+## Desktop pass
+
+The work the cloud passes left for the local machine: the vcpkg builds in
+the project's Docker image, `perf` and heaptrack, and timings on a quieter
+host. It includes the gap-closing changes above. Results:
+[`perf/desktop.json`](perf/desktop.json) (`profile`),
+[`perf/desktop-native.json`](perf/desktop-native.json) (`profile-native`),
+[`perf/desktop-threads.json`](perf/desktop-threads.json) and
+[`perf/python-desktop.json`](perf/python-desktop.json). Flame graphs are in
+`docs/perf/flame/`.
+
+| | |
+| --- | --- |
+| Host | Intel Core Ultra 9 185H laptop on mains power, Windows 11, Balanced plan |
+| Container | Ubuntu 24.04 in Docker Desktop on WSL2 (kernel 5.15), 22 vCPUs, 16 GB |
+| Build | GCC 13.3, dependencies from vcpkg, `-O2 -g -fno-omit-frame-pointer` |
+| Method | Median of 5, pinned to CPU 4; threaded runs on CPUs 0, 2, 4 and 6 |
+
+The 185H mixes performance and efficiency cores, but WSL2 shows 11 equal
+cores with two threads each, and Windows decides where each vCPU runs, so
+pinning does not choose a physical core. Even-numbered CPUs avoid sharing
+a core between threads as far as the guest can tell. A 1,024-step CRR
+benchmark read 0.58-0.63 ms on all 16 vCPUs tried in a second pass, so
+single-threaded results do not depend on the CPU chosen. The 217 C++ tests
+and 777 Python tests pass in this build.
+
+### Timings
+
+The median benchmark is 1.8x faster than the same benchmark in the cloud
+JSON, and most sit between 1.3x and 2.8x. Part of that spread is cloud
+noise, so these are the figures to use as a baseline from now on.
+
+| Benchmark | Cloud | Desktop | Speed-up |
+| --- | --- | --- | --- |
+| BSM price | 47 ns | 26 ns | 1.8x |
+| CRR American put, 1,024 steps | 0.86 ms | 0.57 ms | 1.5x |
+| CRR American put, 4,096 steps | 16.7 ms | 11.2 ms | 1.5x |
+| Heston price, 1 year | 29 us | 19 us | 1.5x |
+| MC European, 100k paths, default generator | 4.51 ms | 3.20 ms | 1.4x |
+| MC European, 100k paths, `Rng::kZiggurat` | 1.70 ms | 1.43 ms | 1.2x |
+| One normal draw, default / ziggurat | 25 / 2.9 ns | 18 / 2.8 ns | 1.4x / 1.0x |
+| Longstaff-Schwartz, 100,000 paths | 424 ms | 194 ms | 2.2x |
+| FD American, Crank-Nicolson 400 x 400, PSOR | 7.5 ms | 3.5 ms | 2.1x |
+| Tranche spread, 125 names | 3.5 ms | 1.4 ms | 2.5x |
+| Hull-White Bermudan, 2,000 steps | 35.5 ms | 23.9 ms | 1.5x |
+| MBS Monte Carlo | 292 ms | 91 ms | 3.2x |
+
+The ziggurat's lead over the default generator holds: 2.2x on the
+European engine and 6x per draw.
+
+**Threads.** The path simulator takes 116, 69 and 38 ms on one, two and
+four threads, so four threads give 3.1x, in line with the cloud's 3.2x.
+The rows for two and four threads are in `desktop-threads.json` only:
+the pinned suite ran them on one CPU, so they were dropped from the other
+two files.
+
+### `-march=native`: use `x86-64-v3` instead
+
+The median benchmark does not move (1.02x), but some do. A/B runs on this
+host, three rounds each, gave:
+
+| Benchmark | `profile` | `-march=native` | `native -mtune=generic` | `-march=x86-64-v3` |
+| --- | --- | --- | --- | --- |
+| MC European, ziggurat | 1.43 ms | 1.06 ms | 0.97 ms | 0.96 ms |
+| One ziggurat draw | 2.8 ns | 5.5 ns | 2.8 ns | 2.7 ns |
+| CRR American put, 1,024 steps | 0.59 ms | 0.64 ms | 0.63 ms | 0.62 ms |
+| Implied tranche correlation | 22.8 ms | 26.9 ms | 26.1 ms | 25.8 ms |
+
+GCC 13 resolves `native` on this CPU to `-march=alderlake -mtune=alderlake`,
+and that tuning doubles the cost of a ziggurat draw. Generic tuning
+removes the penalty, so the cause is the tuning, not the instruction set.
+`-march=x86-64-v3` (AVX2 and FMA) keeps the Monte Carlo gain of 1.5x, but
+CRR and the tranche correlation stay 5-13% slower than plain x86-64 under
+every AVX2 build. The mechanism was not traced further, because hardware
+counters are unavailable (see below), and the `profile-native` preset is
+unchanged. In the full suite, `native` also speeds up the project lattice
+(1.4x) and PCA (1.2x).
+
+### Profiles
+
+WSL2's kernel exposes no hardware counters: `perf stat` reports cycles and
+instructions as not supported, so these profiles sample on the CPU clock
+(`task-clock`), and cache and branch questions still need Cachegrind.
+Self time, from `perf report --no-children`:
+
+| Benchmark | Where the time goes |
+| --- | --- |
+| CRR American, 1,024 steps | 96% rollback loop in `PriceTree`, 3% `pow` for the tables |
+| MC European, ziggurat | 46% engine loop with the inlined draw, 45% `exp` with its wrapper and PLT stubs, 7% `SampleMoments` |
+| Heston, 1 year | 32% integrand, 27% `cos` and `sincos`, 14% `log`, 13% `atan2`, 10% `exp` and `cexp` |
+| Longstaff-Schwartz, 100,000 paths | 55% engine, 17% `exp`, 14% Mersenne Twister and `generate_canonical`, 10% `log` |
+| Forward exposure | 35% `std::sort`, 16% `ProfileFromPaths`, 13% path loop, the rest random numbers and `exp` |
+| Hull-White Bermudan, 2,000 steps | 44% tree `Build`, 24% `Rollback`, 21% `Discount`, 9% `BranchAt` |
+| MBS Monte Carlo | 35% engine, 26% `expm1`, 13% `pow`, 7% `generate_canonical` |
+| Monte Carlo VaR, 50 factors | 33% `Correlate`, 27% engine, 20% Mersenne Twister and `generate_canonical`, 15% `log` |
+
+These agree with the Callgrind findings above, with three additions:
+
+1. **Forward exposure spends a third of its time sorting.** The sort
+   under `ProfileFromPaths` is there to read one quantile per date, so
+   `std::nth_element` should remove most of that 35%. The paths are also
+   held as one vector per path, which shows up as about 10,000 allocations
+   per call (see below).
+2. **Hull-White: `Discount` and `BranchAt` are not inlined.** They take
+   30% of the Bermudan as separate functions. Moving them into the header,
+   or enabling LTO, is the obvious next try.
+3. **The ziggurat loop is now `exp`-bound.** The draw no longer stands
+   out: the loop spends about as much in `exp` for S_T as in everything
+   else. That supports the note above that only a vector `exp` would help.
+
+None of these were changed in this pass, which only measures.
+
+### Allocations
+
+heaptrack stops recording as soon as `ofod_bench` starts (it reports the
+same 393 startup allocations for every benchmark; the cause was not
+found), so `ofod_heap_driver` runs each hot path 20 times without Google
+Benchmark. No case leaks.
+
+| Case | Allocations per call | Peak heap |
+| --- | --- | --- |
+| CRR American, 1,024 steps | 3 | 99 KB |
+| MC European, ziggurat, 100k paths | 1 | 874 KB |
+| Longstaff-Schwartz, 100,000 paths | 303 | 40.9 MB |
+| Forward exposure, 10,000 paths x 60 dates | 10,092 | 5.3 MB |
+
+Longstaff-Schwartz's 40.9 MB matches Massif's figure from M9. Peak heap
+includes about 74 KB of `libstdc++` startup allocation.
+
+### C++ against Python
+
+Best of three, through `tools/profile/bench_python.py`.
+
+| Case | Python | C++ (bindings) | Ratio |
+| --- | --- | --- | --- |
+| BSM price | 738 ns | 138 ns | 5x |
+| Implied volatility | 7.84 us | 383 ns | 20x |
+| CRR American, 100 steps | 2.88 ms | 4.75 us | 607x |
+| CRR American, 1,000 steps | 299 ms | 285 us | 1,048x |
+| Trinomial American, 500 steps | 127 ms | 444 us | 285x |
+| FD Crank-Nicolson American, PSOR | 25.4 ms | 445 us | 57x |
+| FD Crank-Nicolson American, Brennan-Schwartz | 16.5 ms | 309 us | 53x |
+| MC European, 100,000 paths | 2.34 ms | 3.48 ms | 0.7x |
+| Heston price, 1 year | 362 us | 19.5 us | 19x |
+| Longstaff-Schwartz, 10,000 paths | 35.4 ms | 18.7 ms | 1.9x |
+| Hull-White Bermudan, 500 steps | 110 ms | 1.26 ms | 87x |
+| Tranche spread, 125 names | 68.3 ms | 1.42 ms | 48x |
+| GARCH(1,1) fit, 1,000 returns | 146 ms | 2.42 ms | 60x |
+| Project lattice, 500 steps | 7.41 ms | 396 us | 19x |
+
+The ratios are larger than in M12 mostly because the C++ has improved
+since then. The NumPy cases are unchanged: Monte Carlo stays at 0.7x with
+the default generator and Longstaff-Schwartz at 1.9x.
+
+Pure-Python loops ran slower here than in the cloud (the 1,000-step tree
+took about 300 ms against the cloud's 170 ms). The container uses Ubuntu's
+Python 3.12.3, and the cloud used 3.13. On this host Python 3.13.9 takes
+227 ms for that tree, so the version explains most of the gap, though not
+all of it.

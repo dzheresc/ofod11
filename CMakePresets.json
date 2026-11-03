@@ -42,6 +42,15 @@
       } },
     { "name": "profile-native", "inherits": "profile",
       "cacheVariables": { "CMAKE_CXX_FLAGS": "-march=native" } },
+    { "name": "compare", "inherits": "gcc",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "OFOD_BUILD_TESTS": "OFF",
+        "OFOD_BUILD_CHAPTERS": "OFF",
+        "OFOD_BUILD_COMPARE": "ON",
+        "VCPKG_MANIFEST_FEATURES": "compare",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/vcpkg_installed_compare"
+      } },
     { "name": "coverage", "inherits": "gcc",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "CMAKE_CXX_FLAGS": "--coverage" } }
   ],
@@ -53,6 +62,8 @@
     { "name": "clang-asan", "configurePreset": "clang-asan" },
     { "name": "clang-tsan", "configurePreset": "clang-tsan" },
     { "name": "profile", "configurePreset": "profile" },
+    { "name": "profile-native", "configurePreset": "profile-native" },
+    { "name": "compare", "configurePreset": "compare" },
     { "name": "coverage", "configurePreset": "coverage" }
   ],
   "testPresets": [
