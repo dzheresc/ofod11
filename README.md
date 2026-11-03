@@ -1,6 +1,6 @@
 # ofod11
 
-Code companion for John C. Hull, *Options, Futures, and Other Derivatives*
+A code companion for John C. Hull, *Options, Futures, and Other Derivatives*
 (11th edition), in C++20 and Python 3, targeting Ubuntu Linux.
 
 The repo holds three independent components:
