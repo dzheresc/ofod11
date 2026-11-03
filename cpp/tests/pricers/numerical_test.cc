@@ -103,6 +103,29 @@ TEST_CASE("Every Monte Carlo method agrees with BSM", "[mc][ch21]") {
   CHECK_FALSE(MonteCarloEuropean(american, kMarket, {}));
 }
 
+TEST_CASE("The ziggurat generator works with every Monte Carlo method",
+          "[mc][ch21]") {
+  const double target = Bsm();
+  for (auto method :
+       {VarianceReduction::kNone, VarianceReduction::kAntithetic,
+        VarianceReduction::kControlVariate,
+        VarianceReduction::kImportanceSampling, VarianceReduction::kStratified,
+        VarianceReduction::kMomentMatching, VarianceReduction::kQuasiRandom}) {
+    const McOptions options{
+        .paths = 64000, .seed = 11, .method = method, .rng = Rng::kZiggurat};
+    const auto r = MonteCarloEuropean(kCall, kMarket, options);
+    REQUIRE(r.has_value());
+    CHECK_THAT(r->price, WithinAbs(target, 4.0 * r->std_error + 1e-4));
+    const auto again = MonteCarloEuropean(kCall, kMarket, options);
+    CHECK(again->price == r->price);
+  }
+  // A different stream from the default generator for the same seed.
+  const auto mt = MonteCarloEuropean(kCall, kMarket, {.paths = 64000});
+  const auto zig = MonteCarloEuropean(kCall, kMarket,
+                                      {.paths = 64000, .rng = Rng::kZiggurat});
+  CHECK(mt->price != zig->price);
+}
+
 TEST_CASE("Importance sampling helps deep out-of-the-money calls",
           "[mc][ch21]") {
   const VanillaOption otm{.strike = 55.0, .maturity = 0.5};

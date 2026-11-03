@@ -113,6 +113,7 @@ from ofod.pricers.model_pricers import merton_jump_price
 from ofod.pricers.monte_carlo import CHUNK_PATHS
 from ofod.pricers.monte_carlo import McOptions
 from ofod.pricers.monte_carlo import McResult
+from ofod.pricers.monte_carlo import Rng
 from ofod.pricers.monte_carlo import VarianceReduction
 from ofod.pricers.monte_carlo import mix_seed
 from ofod.pricers.monte_carlo import monte_carlo_european
@@ -233,6 +234,7 @@ __all__ = [
     "ProjectValuation",
     "Range",
     "RefinancingModel",
+    "Rng",
     "SeasonSpec",
     "ShortRateModel",
     "ShortRateTree",

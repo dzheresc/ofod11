@@ -117,23 +117,25 @@ class HestonParams:
     rho: float
 
 
-def _heston_cf(
-    u: np.ndarray, m: TreeMarket, t: float, p: HestonParams
-) -> np.ndarray:
+def _heston_exponent(xi: np.ndarray, t: float, p: HestonParams) -> np.ndarray:
+    """C(xi) + D(xi) v0: the log of E[exp(i xi ln(S_T / F))], little trap."""
     s2 = p.sigma * p.sigma
-    beta = p.kappa - p.rho * p.sigma * 1j * u
-    d = np.sqrt(beta * beta + s2 * (1j * u + u * u))
+    beta = p.kappa - p.rho * p.sigma * 1j * xi
+    d = np.sqrt(beta * beta + s2 * (1j * xi + xi * xi))
     g = (beta - d) / (beta + d)
     e = np.exp(-d * t)
-    c = (m.rate - m.yield_) * 1j * u * t + p.kappa * p.theta / s2 * (
-        (beta - d) * t - 2.0 * np.log((1.0 - g * e) / (1.0 - g))
+    c = (
+        p.kappa
+        * p.theta
+        / s2
+        * ((beta - d) * t - 2.0 * np.log((1.0 - g * e) / (1.0 - g)))
     )
     dd = (beta - d) / s2 * (1.0 - e) / (1.0 - g * e)
-    out: np.ndarray = np.exp(c + dd * p.v0 + 1j * u * math.log(m.spot))
+    out: np.ndarray = c + dd * p.v0
     return out
 
 
-_MAX_PANELS = 2000
+_MAX_PANELS = 20000
 
 
 def heston_price(
@@ -145,35 +147,62 @@ def heston_price(
 ) -> float:
     """Heston's semi-analytic price (Ch 27.2); m.volatility is ignored.
 
-    Same rule as the C++ library: 16-point Gauss-Legendre panels of width 1
-    until three consecutive panels add less than 1e-14 (1 + |integral|).
+    Same method as the C++ library: Lewis's single integral with a
+    Black-Scholes control variate at the expected average variance,
+    16-point Gauss-Legendre panels growing from width 1/2 to a width set by
+    the integrand's decay and oscillation, until three consecutive panels
+    add less than 1e-14 (1 + |integral|).
     """
+    p = params
     rule = quadrature.gauss_legendre(16, 0.0, 1.0)
     nodes = np.asarray(rule.nodes)
     weights = np.asarray(rule.weights)
-    log_k = math.log(strike)
-    integral, quiet, k = 0.0, 0, 0
-    batch = 64
-    while k < _MAX_PANELS and quiet < 3:
-        panels = np.arange(k, min(k + batch, _MAX_PANELS))
-        u = (panels[:, None] + nodes[None, :]).ravel()
-        num = _heston_cf(u - 1j, m, t, params) - strike * _heston_cf(
-            u + 0j, m, t, params
+    forward = m.spot * math.exp((m.rate - m.yield_) * t)
+    x = math.log(forward / strike)
+    kt = p.kappa * t
+    mean_reversion = t if abs(kt) < 1e-8 else -math.expm1(-kt) / p.kappa
+    w = max(p.theta * t + (p.v0 - p.theta) * mean_reversion, 1e-8)
+
+    tail = (p.v0 + kt * p.theta) / p.sigma
+    cap = 8.0 * math.sqrt(w)
+    decay = min(tail * math.sqrt(max(1.0 - p.rho * p.rho, 0.0)), cap)
+    phase = abs(x) + min(abs(p.rho) * tail, cap)
+    width = min(4.0 / max(decay, math.sqrt(w), phase, 1e-3), 50.0)
+
+    def integrand(u: np.ndarray) -> np.ndarray:
+        z = _heston_exponent(u - 0.5j, t, p)
+        value = np.exp(z.real) * np.cos(z.imag + u * x)
+        bs = -0.5 * w * (u * u + 0.25)
+        value -= np.where(bs > -60.0, np.exp(np.maximum(bs, -60.0)), 0.0) * (
+            np.cos(u * x)
         )
-        f = (np.exp(-1j * u * log_k) * num / (1j * u)).real
-        parts = (f.reshape(len(panels), -1) * weights).sum(axis=1)
-        for part in parts:
+        out: np.ndarray = value / (u * u + 0.25)
+        return out
+
+    # Panel widths 1/2, 1, 2, ... up to `width`, then constant.
+    widths = [min(0.5 * 2.0**i, width) for i in range(64)]
+    widths = [h for h in widths if h < width] + [width]
+    integral, quiet, k, left = 0.0, 0, 0, 0.0
+    batch = 32
+    while k < _MAX_PANELS and quiet < 3:
+        n = min(batch, _MAX_PANELS - k)
+        h = np.array([widths[min(k + i, len(widths) - 1)] for i in range(n)])
+        lefts = left + np.concatenate(([0.0], np.cumsum(h)[:-1]))
+        u = (lefts[:, None] + h[:, None] * nodes[None, :]).ravel()
+        parts = (integrand(u).reshape(n, -1) * weights).sum(axis=1) * h
+        for part, hk in zip(parts, h, strict=True):
             integral += float(part)
+            left += float(hk)
             k += 1
             quiet = (
                 quiet + 1 if abs(part) < 1e-14 * (1.0 + abs(integral)) else 0
             )
             if quiet >= 3:
                 break
-    call = (
-        0.5
-        * (m.spot * math.exp(-m.yield_ * t) - strike * math.exp(-m.rate * t))
-        + math.exp(-m.rate * t) / math.pi * integral
+    call = black_scholes.bsm_price(
+        OptionType.CALL, m.spot, strike, m.rate, m.yield_, math.sqrt(w / t), t
+    ) - math.sqrt(forward * strike) * math.exp(-m.rate * t) / math.pi * (
+        integral
     )
     if option_type is OptionType.CALL:
         return call

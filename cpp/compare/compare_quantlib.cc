@@ -216,6 +216,15 @@ void BmMcOfod(benchmark::State& state) {
 }
 BENCHMARK(BmMcOfod)->Unit(benchmark::kMillisecond);
 
+void BmMcOfodZiggurat(benchmark::State& state) {
+  const VanillaOption call{.strike = 40.0, .maturity = 0.5};
+  Run(state, [&] {
+    return pricers::MonteCarloEuropean(
+        call, kMarket, {.paths = 100'000, .rng = pricers::Rng::kZiggurat});
+  });
+}
+BENCHMARK(BmMcOfodZiggurat)->Unit(benchmark::kMillisecond);
+
 void BmMcQuantLib(benchmark::State& state) {
   SetToday();
   ql::VanillaOption option(

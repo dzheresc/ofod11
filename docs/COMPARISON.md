@@ -11,32 +11,51 @@ win.
 Everything here ran in the cloud container. ORE (exposure and CVA) and
 desktop timings need the local Docker machine and are left for later.
 
+The first run found three places where ofod was slower: the Heston
+integral, the European Monte Carlo and, through the bindings, the 100-step
+CRR tree. The tables below are from a second run after the
+[gap-closing pass](PERF.md#comparison-follow-up-closing-the-gaps), which
+fixed all three; the summary says what changed.
+
 ## Summary
 
 - **Trees, finite differences and short-rate trees: ofod is the fastest.**
-  In C++ against C++, the 1,000-step CRR tree is 4.1x faster than
-  QuantLib, Crank-Nicolson American finite differences 3.3x, and the
-  Hull-White Bermudan swaption tree 100x. The errors match QuantLib's
-  to within the discretisation (same tree, same answer to 1e-5).
-- **Heston: QuantLib is 11-12x faster at the same accuracy.** Its default
-  engine integrates with a fixed 144-point Gauss-Laguerre rule (54 us);
-  ofod's adaptive 16-point panels with a tail test take 0.65 ms. Both are
-  within 1e-13 of the reference. This is the one place to borrow from.
+  In C++ against C++, the 1,000-step CRR tree is 12x faster than
+  QuantLib, Crank-Nicolson American finite differences 3.8x, and the
+  Hull-White Bermudan swaption tree 84x. The errors match QuantLib's
+  to within the discretisation (same tree, same answer to 1e-5). The
+  100-step tree through the bindings used to lose to FinancePy's Numba
+  loop (21 us against 12.5 us); with the payoff inlined into the
+  rollback it takes 6.9 us against FinancePy's 13 us, with the same
+  prices to the last bit.
+- **Heston: ofod is now 1.5x faster than QuantLib at the same accuracy**
+  (28 us against 42 us in C++, 1e-14 from the reference). It was 12x
+  slower (0.68 ms). Instead of copying QuantLib's fixed Gauss-Laguerre
+  rule, ofod now integrates Lewis's single-integral form with a
+  Black-Scholes control variate on panels that widen with the
+  integrand's decay, and keeps its adaptive stopping test, so it stays
+  accurate for short maturities and extreme parameters where a fixed
+  rule is not checked. The Python package uses the same method:
+  0.44 ms, down from 1.85 ms.
 - **Monte Carlo: ofod_cpp is 17x faster than QuantLib's European engine
-  and 37x faster than its Longstaff-Schwartz engine,** whose generic path
-  and regression machinery costs about 0.8 us per path step. FinancePy's
-  Numba loop beats ofod_cpp on the European case (3.8 ms against
-  5.8 ms) for the reason already noted in [Performance](PERF.md): one
-  `std::normal_distribution` draw at a time. NumPy-vectorised ofod
-  (Python) is faster still, at 1.9 ms.
+  and 35x faster than its Longstaff-Schwartz engine,** whose generic path
+  and regression machinery costs about 0.8 us per path step. On the
+  European case the default generator (`std::mt19937_64` with
+  `std::normal_distribution`, 25 ns a draw) still loses to FinancePy's
+  Numba loop (4.8 ms against 3.6 ms). The new opt-in
+  `Rng::kZiggurat` (xoshiro256++ with a ziggurat, 3 ns a draw) takes
+  1.7 ms, level with NumPy-vectorised ofod (Python, 1.8 ms, which also
+  draws with a ziggurat) and 2x faster than FinancePy. It is opt-in
+  because a new generator gives new random numbers: the default keeps
+  every seeded result in the golden files.
 - **Closed forms and implied volatility: ofod_cpp is the fastest library
   and as accurate as any.** QuantLib's `blackFormulaImpliedStdDev`
   defaults to an accuracy of 1e-6 (error 5e-7); asked for 1e-12 it takes
-  2.6 us against ofod's 0.43 us. vollib's Let's Be Rational is exact but
-  pure Python (17 us).
-- **CDO tranche and GARCH:** ofod_cpp is 12x faster than FinancePy on the
+  2.7 us against ofod's 0.38 us. vollib's Let's Be Rational is exact but
+  pure Python (15 us).
+- **CDO tranche and GARCH:** ofod_cpp is 11x faster than FinancePy on the
   tranche spread (the binomial shortcut from M12 against FinancePy's full
-  recursion) and 2x faster than `arch` on the GARCH(1,1) fit, with a
+  recursion) and 2.2x faster than `arch` on the GARCH(1,1) fit, with a
   slightly higher likelihood under Hull's definition.
 - **FinancePy prices with Hull's polynomial approximation to N(x),** the
   one in OFOD that is good to 6 decimals, so its BSM prices are off by
@@ -90,20 +109,21 @@ From `cpp/compare/compare_quantlib.cc`; raw results in
 
 | Case | ofod | QuantLib | ofod speed-up | ofod value | QuantLib value |
 | --- | --- | --- | --- | --- | --- |
-| BSM call (`blackFormula`) | 41 ns | 47 ns | 1.1x | 4.759422393 | 4.759422393 |
-| BSM call (instrument + `AnalyticEuropeanEngine`) | 41 ns | 4.7 us | 115x | | 4.759422393 |
-| Implied vol (QuantLib at 1e-12) | 0.43 us | 2.6 us | 6.1x | 0.2345129140 | 0.2345129140 |
-| CRR American put, 100 steps | 18 us | 83 us | 4.6x | 4.278059 | 4.278146 |
-| CRR American put, 1,000 steps | 1.34 ms | 5.53 ms | 4.1x | 4.283627 | 4.283636 |
-| FD American put, CN 200 x 100, Brennan-Schwartz | 0.54 ms | 1.77 ms | 3.3x | 4.279686 | 4.281504 |
-| ... ofod with projection (as QuantLib) | 0.39 ms | | 4.5x | 4.277555 | |
-| ... ofod with PSOR | 0.78 ms | | 2.3x | 4.279686 | |
-| MC European call, 100,000 draws | 4.7 ms | 81 ms | 17x | 13.099 | 13.019 |
-| Heston call, Gauss-Laguerre 144 (QL default) | 0.68 ms | 54 us | 0.08x | 9.242521074 | 9.242521074 |
-| ... QuantLib adaptive Gauss-Lobatto, 1e-8 | | 100 us | 0.15x | | 9.242521074 |
-| ... QuantLib COS | | 65 us | 0.10x | | 9.242521074 |
-| Longstaff-Schwartz put, 10,000 paths x 50 dates | 23.5 ms | 882 ms | 37x | 4.458 | 4.434 |
-| Hull-White Bermudan swaption, 500 steps | 1.14 ms | 115 ms | 100x | 0.0328026 | 0.0327794 |
+| BSM call (`blackFormula`) | 33 ns | 43 ns | 1.3x | 4.759422393 | 4.759422393 |
+| BSM call (instrument + `AnalyticEuropeanEngine`) | 33 ns | 4.6 us | 138x | | 4.759422393 |
+| Implied vol (QuantLib at 1e-12) | 0.38 us | 2.7 us | 7.2x | 0.2345129140 | 0.2345129140 |
+| CRR American put, 100 steps | 7.0 us | 67 us | 9.7x | 4.278059 | 4.278146 |
+| CRR American put, 1,000 steps | 0.44 ms | 5.12 ms | 12x | 4.283627 | 4.283636 |
+| FD American put, CN 200 x 100, Brennan-Schwartz | 0.48 ms | 1.84 ms | 3.8x | 4.279686 | 4.281504 |
+| ... ofod with projection (as QuantLib) | 0.44 ms | | 4.2x | 4.277555 | |
+| ... ofod with PSOR | 0.79 ms | | 2.3x | 4.279686 | |
+| MC European call, 100,000 draws | 4.5 ms | 77 ms | 17x | 13.099 | 13.019 |
+| ... ofod with `Rng::kZiggurat` | 1.69 ms | | 46x | 13.032 | |
+| Heston call, Gauss-Laguerre 144 (QL default) | 28 us | 42 us | 1.5x | 9.242521074 | 9.242521074 |
+| ... QuantLib adaptive Gauss-Lobatto, 1e-8 | | 95 us | 3.4x | | 9.242521074 |
+| ... QuantLib COS | | 73 us | 2.6x | | 9.242521074 |
+| Longstaff-Schwartz put, 10,000 paths x 50 dates | 23.1 ms | 807 ms | 35x | 4.458 | 4.434 |
+| Hull-White Bermudan swaption, 500 steps | 1.07 ms | 89 ms | 84x | 0.0328026 | 0.0327794 |
 
 Notes:
 
@@ -117,8 +137,11 @@ Notes:
   log grid puts more points near the strike. ofod's own log-space grid
   (`FdGrid::log_space`) is the fairer counterpart for a follow-up.
 - **Monte Carlo:** QuantLib draws through its general path generator and
-  statistics accumulators. Both prices are within 1.5 standard errors
-  (0.042) of the closed form 13.041.
+  statistics accumulators. All three prices are within 1.5 standard
+  errors (0.042) of the closed form 13.041.
+- **Heston:** before this pass ofod took 0.68 ms here, with 16-point
+  panels of width 1 and Hull's two-term integrand; see
+  [Performance](PERF.md#comparison-follow-up-closing-the-gaps).
 - **Longstaff-Schwartz:** QuantLib first simulates 10,000 calibration
   paths for the regression and then 10,000 pricing paths, so it does
   twice the simulation; even per path it is about 19x slower.
@@ -145,11 +168,11 @@ formula with `math.erfc`.
 
 | Library | Time | Error |
 | --- | --- | --- |
-| ofod (Python) | 583 ns | 0 |
-| ofod_cpp | 121 ns | 0 |
-| QuantLib (`blackFormula`) | 246 ns | 9e-16 |
+| ofod (Python) | 619 ns | 0 |
+| ofod_cpp | 131 ns | 0 |
+| QuantLib (`blackFormula`) | 250 ns | 9e-16 |
 | FinancePy (`european_value`, Numba) | 2.8 us | 6.0e-7 |
-| vollib | 3.6 us | -4e-15 |
+| vollib | 3.9 us | -4e-15 |
 
 ### Implied volatility
 
@@ -158,11 +181,11 @@ Rational (vollib), exact to rounding.
 
 | Library | Time | Error |
 | --- | --- | --- |
-| ofod (Python) | 6.7 us | 1e-15 |
-| ofod_cpp | 450 ns | 1e-15 |
-| QuantLib (default accuracy 1e-6) | 1.25 us | -5.1e-7 |
-| FinancePy (Newton, Numba) | 45 us | -2.2e-7 |
-| vollib | 17 us | 0 |
+| ofod (Python) | 6.3 us | 1e-15 |
+| ofod_cpp | 461 ns | 1e-15 |
+| QuantLib (default accuracy 1e-6) | 1.37 us | -5.1e-7 |
+| FinancePy (Newton, Numba) | 46 us | -2.2e-7 |
+| vollib | 15 us | 0 |
 
 ### American put on a CRR tree
 
@@ -171,14 +194,14 @@ of 20,000- and 20,001-step CRR trees.
 
 | Library | 100 steps | 1,000 steps | Error at 1,000 |
 | --- | --- | --- | --- |
-| ofod (Python) | 1.72 ms | 157 ms | -6.0e-4 |
-| ofod_cpp | 21 us | 1.50 ms | -6.0e-4 |
-| QuantLib | 59 us | 4.29 ms | -5.9e-4 |
-| FinancePy (Numba) | 12.5 us | 3.95 ms | -6.0e-4 |
+| ofod (Python) | 1.84 ms | 170 ms | -6.0e-4 |
+| ofod_cpp | 6.9 us | 0.41 ms | -6.0e-4 |
+| QuantLib | 62 us | 4.49 ms | -5.9e-4 |
+| FinancePy (Numba) | 13.3 us | 4.17 ms | -6.0e-4 |
 
 FinancePy runs the same algorithm and returns ofod's price to all digits.
-At 100 steps its Numba loop beats ofod_cpp through the bindings, at
-1,000 steps ofod_cpp is 2.6x faster.
+ofod_cpp is 1.9x faster at 100 steps (it was 1.7x slower before the payoff
+was inlined) and 10x faster at 1,000 steps.
 
 ### American put by Crank-Nicolson finite differences
 
@@ -186,14 +209,14 @@ Same option, 200 price steps x 100 time steps; same reference.
 
 | Library | Method | Time | Error |
 | --- | --- | --- | --- |
-| ofod (Python) | Brennan-Schwartz | 9.3 ms | -4.5e-3 |
-| ofod (Python) | PSOR | 17.4 ms | -4.5e-3 |
-| ofod_cpp | Brennan-Schwartz | 464 us | -4.5e-3 |
-| ofod_cpp | projection | 391 us | -6.7e-3 |
-| ofod_cpp | PSOR | 685 us | -4.5e-3 |
+| ofod (Python) | Brennan-Schwartz | 10.8 ms | -4.5e-3 |
+| ofod (Python) | PSOR | 14.0 ms | -4.5e-3 |
+| ofod_cpp | Brennan-Schwartz | 445 us | -4.5e-3 |
+| ofod_cpp | projection | 410 us | -6.7e-3 |
+| ofod_cpp | PSOR | 712 us | -4.5e-3 |
 | QuantLib | projection, log grid | 1.49 ms | -2.7e-3 |
-| FinancePy (Numba) | projection, log grid | 1.04 ms | -4.4e-3 |
-| FinancePy (Numba) | PSOR, log grid | 19.7 ms | -4.4e-3 |
+| FinancePy (Numba) | projection, log grid | 1.16 ms | -4.4e-3 |
+| FinancePy (Numba) | PSOR, log grid | 19.0 ms | -4.4e-3 |
 
 ### European call by Monte Carlo
 
@@ -202,13 +225,15 @@ Reference: the closed form, 13.0407; one standard error is 0.042.
 
 | Library | Time | Error |
 | --- | --- | --- |
-| ofod (Python, NumPy) | 1.9 ms | -0.079 |
-| ofod_cpp | 5.8 ms | 0.058 |
-| QuantLib | 54 ms | -0.022 |
-| FinancePy (Numba loop) | 3.8 ms | 0.017 |
+| ofod (Python, NumPy) | 1.77 ms | -0.079 |
+| ofod_cpp (default generator) | 4.77 ms | 0.058 |
+| ofod_cpp (`Rng.ZIGGURAT`) | 1.71 ms | -0.009 |
+| QuantLib | 46 ms | -0.022 |
+| FinancePy (Numba loop) | 3.59 ms | 0.017 |
 
 The errors are all within two standard errors; with different random
-numbers they are noise, not accuracy.
+numbers they are noise, not accuracy. NumPy's `standard_normal` is also a
+ziggurat, which is why the vectorised Python was ahead of the C++ default.
 
 ### Heston call
 
@@ -217,11 +242,14 @@ rho = -0.7. Reference: QuantLib's adaptive Gauss-Lobatto at 1e-13.
 
 | Library | Time | Error |
 | --- | --- | --- |
-| ofod (Python) | 1.85 ms | -7e-14 |
-| ofod_cpp | 598 us | -8e-14 |
-| QuantLib (Gauss-Laguerre 144) | 54 us | -4e-15 |
-| QuantLib (COS) | 67 us | -5e-12 |
-| FinancePy (`value_lewis`, SciPy `quad`) | 1.03 ms | 6e-13 |
+| ofod (Python) | 440 us | -1e-14 |
+| ofod_cpp | 26.8 us | -1e-14 |
+| QuantLib (Gauss-Laguerre 144) | 41.5 us | -4e-15 |
+| QuantLib (COS) | 73 us | -5e-12 |
+| FinancePy (`value_lewis`, SciPy `quad`) | 1.13 ms | 6e-13 |
+
+Before this pass: ofod (Python) 1.85 ms and ofod_cpp 598 us, both within
+8e-14.
 
 ### Longstaff-Schwartz
 
@@ -232,10 +260,10 @@ American; the 50-date Bermudan is a little lower). One standard error is
 
 | Library | Time | Error |
 | --- | --- | --- |
-| ofod (Python) | 41 ms | 0.011 |
-| ofod_cpp | 26 ms | -0.029 |
-| QuantLib | 597 ms | -0.052 |
-| FinancePy (antithetic pairs) | 72 ms | -0.016 |
+| ofod (Python) | 44 ms | 0.011 |
+| ofod_cpp | 25 ms | -0.029 |
+| QuantLib | 557 ms | -0.052 |
+| FinancePy (antithetic pairs) | 75 ms | -0.016 |
 
 ### Hull-White Bermudan swaption
 
@@ -246,9 +274,9 @@ included). Reference 0.0327553: QuantLib's finite-difference engine on a
 
 | Library | Time | Error |
 | --- | --- | --- |
-| ofod (Python) | 82 ms | 4.7e-5 |
-| ofod_cpp | 1.25 ms | 4.7e-5 |
-| QuantLib (`TreeSwaptionEngine`) | 172 ms | 2.4e-5 |
+| ofod (Python) | 75 ms | 4.7e-5 |
+| ofod_cpp | 1.19 ms | 4.7e-5 |
+| QuantLib (`TreeSwaptionEngine`) | 177 ms | 2.4e-5 |
 
 FinancePy's Bermudan swaption takes calendar dates and its own day
 counts, so it cannot be set up to match this case exactly and is left
@@ -263,9 +291,9 @@ CDO engines.
 
 | Library | Time | Error (spread) |
 | --- | --- | --- |
-| ofod (Python) | 71 ms | -1.9e-7 |
-| ofod_cpp | 1.82 ms | -1.9e-7 |
-| FinancePy (full recursion, Numba) | 21 ms | 7e-9 |
+| ofod (Python) | 77 ms | -1.9e-7 |
+| ofod_cpp | 2.1 ms | -1.9e-7 |
+| FinancePy (full recursion, Numba) | 23 ms | 7e-9 |
 
 FinancePy's 64-step rectangle rule on [-6, 6] happens to be closer than
 64 Gauss-Hermite points here; both errors are below 0.002 bp.
@@ -279,9 +307,9 @@ parameters; higher is better.
 
 | Library | Time | Log likelihood | omega | alpha | beta |
 | --- | --- | --- | --- | --- | --- |
-| ofod (Python) | 48 ms | 8140.511 | 2.74e-6 | 0.0995 | 0.8799 |
-| ofod_cpp | 2.0 ms | 8140.511 | 2.74e-6 | 0.0995 | 0.8799 |
-| arch | 4.0 ms | 8140.306 | 2.50e-6 | 0.1000 | 0.8800 |
+| ofod (Python) | 50 ms | 8140.511 | 2.74e-6 | 0.0995 | 0.8799 |
+| ofod_cpp | 1.94 ms | 8140.511 | 2.74e-6 | 0.0995 | 0.8799 |
+| arch | 4.3 ms | 8140.306 | 2.50e-6 | 0.1000 | 0.8800 |
 
 `arch` maximises its own likelihood, which starts the variance from a
 backcast rather than from u_0^2, so it scores a little lower on Hull's
@@ -290,11 +318,11 @@ definition; both recover the true parameters.
 ## Follow-ups
 
 - Fix `GaussHermite` for 199 and 200 points (or cap it at 198).
-- Heston: try a fixed Gauss-Laguerre rule like QuantLib's, with the
-  adaptive integral kept as a check.
-- C++ Monte Carlo: block normal generation (structure of arrays), which
-  [Performance](PERF.md) already lists, would close the gap to NumPy and
-  Numba on the European case.
+- Done in the follow-up pass: the Heston integral, the European Monte
+  Carlo (opt-in `Rng::kZiggurat`) and the small CRR tree. The ziggurat
+  could also be offered to the path simulator and the other Monte Carlo
+  engines; that changes their seeded results only if opted into, so it is
+  left until there is a need.
 - Finite differences: compare on ofod's log-space grid as well.
 - Later, on the local machine: ORE for exposure and CVA, QuantLib 1.44
   from vcpkg, and desktop timings.

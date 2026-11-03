@@ -367,3 +367,130 @@ sit within the host noise described above.
   the project's Docker image; this pass used Ubuntu's packages for Google
   Benchmark, Catch2 and the rest.
 - Desktop timings, to compare absolute numbers with the cloud figures.
+
+## Comparison follow-up: closing the gaps
+
+[Comparison](COMPARISON.md) found three cases where ofod was slower than
+another library: the Heston price (12x slower than QuantLib), the 100,000
+path European Monte Carlo (slower than FinancePy's Numba loop and than
+ofod's own NumPy code) and, through the bindings, the 100-step CRR tree
+(slower than FinancePy). This pass works on those three only. Before and
+after, same container, `profile` build, median of 5:
+[`perf/m13-before.json`](perf/m13-before.json) and
+[`perf/m13.json`](perf/m13.json).
+
+| Benchmark | Before | After | Speed-up |
+| --- | --- | --- | --- |
+| Heston price, 1 month | 1.35 ms | 29 us | 46x |
+| Heston price, 1 year | 667 us | 29 us | 23x |
+| Heston price, 5 years | 244 us | 31 us | 8x |
+| MC European, 100k paths, default generator | 4.93 ms | 4.51 ms | 1.1x |
+| MC European, 100k paths, `Rng::kZiggurat` | | 1.70 ms | 2.9x |
+| One normal draw, default / ziggurat | 24.5 ns | 2.9 ns | 8x |
+| CRR American put, 64 steps | 9.4 us | 5.2 us | 1.8x |
+| CRR American put, 1,024 steps | 1.48 ms | 0.86 ms | 1.7x |
+| CRR American put, 4,096 steps | 25.8 ms | 16.7 ms | 1.5x |
+
+### Findings
+
+1. **Heston: too many integrand evaluations, not slow ones.** One
+   characteristic function costs about 130 ns (Callgrind: `atan2`, `cos`,
+   `exp`, `csqrt` and complex arithmetic in roughly equal parts), the same
+   as in QuantLib. The difference was the count: two characteristic
+   functions per node (Hull's form) on 16-point panels of width 1, 3,552
+   evaluations for one year against QuantLib's 144-node rule. Three
+   changes bring it to about 220:
+   - **Lewis's single integral.** One characteristic function per node,
+     evaluated at u - i/2, with the factor e^{iux} folded into the cosine
+     of the final exponential.
+   - **A Black-Scholes control variate** at the expected average variance.
+     Subtracting the Black-Scholes integrand (known in closed form) makes
+     the remainder small near zero, and it removes the poles of
+     1 / (u^2 + 1/4) at +-i/2, because both characteristic functions
+     equal 1 there. Without it, 16-point panels wider than about 1 lose
+     accuracy near the origin (errors of 1e-5 at width 4).
+   - **Panels sized to the integrand.** The width comes from the
+     integrand's length scales: e^{-w u^2 / 2} near zero, the tail decay
+     sqrt(1 - rho^2) (v0 + kappa theta T) / sigma and phase rate, and the
+     moneyness. Panels start at 1/2 and double up to that width, because
+     the characteristic function has poles on the imaginary axis at
+     distance 1/2 or more (moment explosions); doubling keeps each panel
+     as far from them, relative to its width, as the first one. The
+     stopping test is unchanged (three panels below 1e-14 (1 + |I|)).
+
+   QuantLib's fixed 144-point Gauss-Laguerre rule was the suggested
+   model, but a fixed rule has no error check, and short maturities need
+   integrals out to u in the thousands. The adaptive panels keep the
+   check and still beat it: 28 us against 42 us in
+   [Comparison](COMPARISON.md). Accuracy was checked on 588 cases (12
+   parameter sets including sigma = 2 with rho = -0.95, kappa = 0 and
+   v0 = 0; maturities from one week to 30 years; strikes 50-200) against
+   two independent integrals with fine fixed panels (Hull's form and
+   Lewis's without the control variate). Where the references are
+   converged, the new prices agree with them to about 1e-11, the
+   references' own rounding; where they disagree with each other (very
+   short maturities, slow tails), the new price sits with the one that is
+   stable under panel refinement. A new unit test checks 30 cases at
+   1e-10 against a reference written separately in the test.
+
+   The old integral had a real failure: with kappa = 0, rho = 0.9 and
+   T = 30, Hull's form gave calls of 45.6 at K = 50, below the
+   no-arbitrage bound S e^{-qT} - K e^{-rT} = 53.8; the new form gives
+   55.7, which the reference confirms. The two golden Heston cases (1 year)
+   move by 7e-14 and 3e-13. The Python package uses the same method and
+   went from 1.85 ms to 0.44 ms.
+
+   Smaller items: the Gauss-Legendre rule is built once (static), and
+   `std::sqrt` on complex numbers (glibc `csqrt`, which goes through
+   `hypot`) is replaced by the textbook formula.
+
+2. **Monte Carlo: the normal generator, as expected.** Callgrind on the
+   default European engine put 33% of instructions in
+   `std::normal_distribution` (the Marsaglia polar method: two uniforms, a
+   logarithm, a square root and a division per pair, with 21% of pairs
+   rejected), 9% in `log`, 5% in the Mersenne Twister, 22% in `exp` for
+   S_T and 6% in `memset` for two zero-filled 800 KB vectors. NumPy's
+   `standard_normal` is a ziggurat, which is why the vectorised Python
+   was faster than the C++.
+
+   Any faster generator changes the random numbers and so every seeded
+   result, so the new one is opt-in: `McOptions::rng = Rng::kZiggurat`
+   (`Rng.ZIGGURAT` in the bindings) uses xoshiro256++ and a 256-layer
+   Marsaglia-Tsang ziggurat. About 99% of draws cost one 64-bit integer,
+   a table lookup and a multiply; the layer index and sign come from the
+   low 9 bits and the uniform from the top 53, so they are independent
+   (the flaw Doornik pointed out in the original). The sign is applied
+   by flipping the sign bit; a branch on that coin flip mispredicted half
+   the time and cost more than the rest of the draw (7 ns against 3 ns).
+   Tests check the xoshiro256++ stream against values computed
+   independently, the first four moments, the frequency of tail draws
+   beyond R, a Kolmogorov-Smirnov test on 10^6 draws, and every variance
+   reduction method against Black-Scholes.
+
+   The default path also stopped zero-filling vectors it then overwrote
+   and calls an inlined payoff; prices and standard errors are
+   bit-for-bit identical to before for every method (checked against a
+   build of the previous commit). The remaining 17 ns per path with the
+   ziggurat is mostly `exp` for S_T; vectorising it would need
+   `-ffast-math` or a vector math library.
+
+   Stratified sampling and quasi-random draws use the inverse normal
+   rather than the generator, so they do not change. The path simulator
+   and the other Monte Carlo engines still use the default generator
+   only; offering them the option is a small change if it is ever
+   needed.
+
+3. **CRR tree: the payoff was a function call per node.** The American
+   check called `IntrinsicValue`, which lives in another translation
+   unit, once per node, so the rollback loop could not be inlined or
+   vectorised. An inlined max(phi (S - K), 0), which gives the same
+   values (K - S is exactly -(S - K)), makes the loop vectorise: 1.5-1.8x
+   in C++, and through the bindings the 100-step tree went from 21 us to
+   6.9 us against FinancePy's 13 us. Prices and deltas are bit-for-bit
+   unchanged for all three schemes, both exercise styles and both option
+   types (checked against the previous commit).
+
+### Postponed (needs the local machine)
+
+- Desktop timings of the three changes, and `perf` profiles of the
+  ziggurat loop.

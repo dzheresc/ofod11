@@ -35,21 +35,51 @@ Complex Log(Complex z) { return {0.5 * std::log(std::norm(z)), std::arg(z)}; }
 // that cannot occur here and cost 10% of the Heston integral.
 Complex Div(Complex a, Complex b) { return a * std::conj(b) / std::norm(b); }
 
-// Characteristic function E[exp(i u ln S_T)], u complex.
-Complex HestonCf(Complex u, const TreeMarket& m, double t,
-                 const HestonParams& p) {
-  const Complex i(0.0, 1.0);
-  const double s2 = p.sigma * p.sigma;
-  const Complex beta = p.kappa - p.rho * p.sigma * i * u;
-  const Complex d = std::sqrt(beta * beta + s2 * (i * u + u * u));
-  const Complex g = Div(beta - d, beta + d);
-  const Complex e = std::exp(-d * t);
-  const Complex c = (m.rate - m.yield) * i * u * t +
-                    p.kappa * p.theta / s2 *
-                        ((beta - d) * t - 2.0 * Log(Div(1.0 - g * e, 1.0 - g)));
-  const Complex dd = (beta - d) / s2 * Div(1.0 - e, 1.0 - g * e);
-  return std::exp(c + dd * p.v0 + i * u * std::log(m.spot));
+// sqrt(z) on the principal branch. std::sqrt calls glibc's csqrt, which
+// goes through hypot and edge-case handling that cannot matter here.
+Complex Sqrt(Complex z) {
+  const double r = std::sqrt(z.real() * z.real() + z.imag() * z.imag());
+  const double a = std::sqrt(0.5 * (r + std::abs(z.real())));
+  if (a == 0.0) return {0.0, 0.0};
+  const double b = 0.5 * z.imag() / a;
+  return z.real() >= 0.0 ? Complex(a, b)
+                         : Complex(std::abs(b), std::copysign(a, z.imag()));
 }
+
+// Heston's characteristic function of ln(S_T / F), F the forward, in the
+// "little trap" form: E[exp(i xi ln(S_T / F))] = exp(C(xi) + D(xi) v0).
+// Returns C + D v0; the caller takes the exponential.
+class HestonExponent {
+ public:
+  HestonExponent(double t, const HestonParams& p)
+      : t_(t),
+        v0_(p.v0),
+        kappa_(p.kappa),
+        s2_(p.sigma * p.sigma),
+        rho_sigma_(p.rho * p.sigma),
+        kt_over_s2_(p.kappa * p.theta / s2_) {}
+
+  Complex operator()(Complex xi) const {
+    const Complex i_xi(-xi.imag(), xi.real());  // i xi
+    const Complex beta = kappa_ - rho_sigma_ * i_xi;
+    const Complex d = Sqrt(beta * beta + s2_ * (i_xi + xi * xi));
+    const Complex bm = beta - d;
+    const Complex g = Div(bm, beta + d);
+    const Complex e = std::exp(-d * t_);
+    const Complex ge = 1.0 - g * e;
+    const Complex c = kt_over_s2_ * (bm * t_ - 2.0 * Log(Div(ge, 1.0 - g)));
+    const Complex dd = bm / s2_ * Div(1.0 - e, ge);
+    return c + dd * v0_;
+  }
+
+ private:
+  double t_;
+  double v0_;
+  double kappa_;
+  double s2_;
+  double rho_sigma_;
+  double kt_over_s2_;
+};
 
 }  // namespace
 
@@ -105,31 +135,74 @@ double MertonJumpPrice(OptionType type, const TreeMarket& m, double strike,
 
 double HestonPrice(OptionType type, const TreeMarket& m, double strike,
                    double t, const HestonParams& params) {
-  const auto rule = math::GaussLegendre(16, 0.0, 1.0);
+  static const std::optional<math::Quadrature> rule =
+      math::GaussLegendre(16, 0.0, 1.0);
   if (!rule) return std::numeric_limits<double>::quiet_NaN();
   const math::Quadrature& panel = *rule;
-  const Complex i(0.0, 1.0);
-  const double log_k = std::log(strike);
+  const double forward = m.spot * std::exp((m.rate - m.yield) * t);
+  const double x = std::log(forward / strike);
+  const HestonExponent exponent(t, params);
+
+  // Black-Scholes control variate with the expected integrated variance
+  // w = E[int_0^T v dt]. The identity holds for any w > 0; this choice
+  // makes the difference of the two integrands small near u = 0, and it
+  // cancels the poles of 1 / (u^2 + 1/4) at u = +-i/2 (both characteristic
+  // functions are 1 there), so wide panels converge quickly.
+  const double kt = params.kappa * t;
+  const double mean_reversion =
+      std::abs(kt) < 1e-8 ? t : -std::expm1(-kt) / params.kappa;
+  const double w = std::max(
+      params.theta * t + (params.v0 - params.theta) * mean_reversion, 1e-8);
+
+  // Lewis (2001): C = BS(w) - sqrt(F K) e^{-rT} / pi
+  //   int_0^inf Re[e^{iux} (psi_H(u - i/2) - psi_BS(u - i/2))] /
+  //   (u^2 + 1/4) du, with psi_BS(u - i/2) = e^{-w (u^2 + 1/4) / 2}.
   auto integrand = [&](double u) {
-    const Complex num = HestonCf(Complex(u, -1.0), m, t, params) -
-                        strike * HestonCf(Complex(u, 0.0), m, t, params);
-    // Re[e^{-iu ln K} num / (iu)] = Im[e^{-iu ln K} num] / u.
-    return (std::exp(-i * u * log_k) * num).imag() / u;
+    const Complex z = exponent(Complex(u, -0.5));
+    double value = std::exp(z.real()) * std::cos(z.imag() + u * x);
+    const double bs = -0.5 * w * (u * u + 0.25);
+    if (bs > -60.0) value -= std::exp(bs) * std::cos(u * x);
+    return value / (u * u + 0.25);
   };
+
+  // Panel width from the integrand's length scales. Near zero it behaves
+  // like e^{-w u^2 / 2}; in the tail |psi_H| decays like e^{-c u} with
+  // c = sqrt(1 - rho^2) (v0 + kappa theta T) / sigma and turns with phase
+  // rate rho (v0 + kappa theta T) / sigma; e^{iux} adds the moneyness. The
+  // tail rates are capped at 8 sqrt(w), where the Gaussian part has long
+  // decayed, so that a tiny sigma does not force tiny panels.
+  const double tail = (params.v0 + kt * params.theta) / params.sigma;
+  const double cap = 8.0 * std::sqrt(w);
+  const double decay = std::min(
+      tail * std::sqrt(std::max(1.0 - params.rho * params.rho, 0.0)), cap);
+  const double phase = std::abs(x) + std::min(std::abs(params.rho) * tail, cap);
+  const double scale = std::max({decay, std::sqrt(w), phase, 1e-3});
+  const double width = std::min(4.0 / scale, 50.0);
+
+  // Panels start at width 1/2 and double up to `width`: the characteristic
+  // function has poles on the imaginary axis at |u| >= 1/2 (moment
+  // explosions), and doubling keeps each panel as far from them, relative
+  // to its width, as the first one.
   double integral = 0.0;
+  double left = 0.0;
+  double h = std::min(0.5, width);
   int quiet = 0;
-  constexpr int kMaxPanels = 2000;
+  constexpr int kMaxPanels = 20000;
   for (int k = 0; k < kMaxPanels && quiet < 3; ++k) {
     double part = 0.0;
     for (std::size_t j = 0; j < panel.nodes.size(); ++j) {
-      part += panel.weights[j] * integrand(k + panel.nodes[j]);
+      part += panel.weights[j] * integrand(left + h * panel.nodes[j]);
     }
+    part *= h;
+    left += h;
+    h = std::min(2.0 * h, width);
     integral += part;
     quiet = std::abs(part) < 1e-14 * (1.0 + std::abs(integral)) ? quiet + 1 : 0;
   }
-  const double call =
-      0.5 * (m.spot * std::exp(-m.yield * t) - strike * std::exp(-m.rate * t)) +
-      std::exp(-m.rate * t) / std::numbers::pi * integral;
+  const double call = BsmPrice(OptionType::kCall, m.spot, strike, m.rate,
+                               m.yield, std::sqrt(w / t), t) -
+                      std::sqrt(forward * strike) * std::exp(-m.rate * t) /
+                          std::numbers::pi * integral;
   return type == OptionType::kCall ? call : PutFromCall(call, m, strike, t);
 }
 

@@ -35,14 +35,26 @@ class VarianceReduction(enum.Enum):
     QUASI_RANDOM = "quasi_random"
 
 
+class Rng(enum.Enum):
+    """Normal generator of the C++ library's MonteCarloEuropean.
+
+    Accepted for API parity: NumPy's default generator (PCG64 with a
+    ziggurat for normals) is used either way.
+    """
+
+    MERSENNE_TWISTER = "mersenne_twister"
+    ZIGGURAT = "ziggurat"
+
+
 @dataclasses.dataclass(frozen=True)
 class McOptions:
-    """Simulation settings; `threads` is accepted for API parity."""
+    """Simulation settings; `threads` and `rng` are accepted for API parity."""
 
     paths: int = 100_000
     seed: int = 1
     method: VarianceReduction = VarianceReduction.NONE
     threads: int = 1
+    rng: Rng = Rng.MERSENNE_TWISTER
 
 
 @dataclasses.dataclass(frozen=True)

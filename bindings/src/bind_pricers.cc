@@ -303,19 +303,24 @@ void BindPricers(nb::module_& m) {
       .value("STRATIFIED", VarianceReduction::kStratified)
       .value("MOMENT_MATCHING", VarianceReduction::kMomentMatching)
       .value("QUASI_RANDOM", VarianceReduction::kQuasiRandom);
+  nb::enum_<pricers::Rng>(m, "Rng")
+      .value("MERSENNE_TWISTER", pricers::Rng::kMersenneTwister)
+      .value("ZIGGURAT", pricers::Rng::kZiggurat);
   nb::class_<McOptions>(m, "McOptions")
       .def(
           "__init__",
           [](McOptions* self, int paths, std::uint64_t seed,
-             VarianceReduction method, int threads) {
-            new (self) McOptions{paths, seed, method, threads};
+             VarianceReduction method, int threads, pricers::Rng rng) {
+            new (self) McOptions{paths, seed, method, threads, rng};
           },
           nb::arg("paths") = 100'000, nb::arg("seed") = 1,
-          nb::arg("method") = VarianceReduction::kNone, nb::arg("threads") = 1)
+          nb::arg("method") = VarianceReduction::kNone, nb::arg("threads") = 1,
+          nb::arg("rng") = pricers::Rng::kMersenneTwister)
       .def_rw("paths", &McOptions::paths)
       .def_rw("seed", &McOptions::seed)
       .def_rw("method", &McOptions::method)
-      .def_rw("threads", &McOptions::threads);
+      .def_rw("threads", &McOptions::threads)
+      .def_rw("rng", &McOptions::rng);
   nb::class_<McResult>(m, "McResult")
       .def(nb::init<double, double, int>(), nb::arg("price"),
            nb::arg("std_error"), nb::arg("paths"))

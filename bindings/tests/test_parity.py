@@ -240,6 +240,19 @@ def test_monte_carlo_agrees_statistically() -> None:
     assert ofod.pricers.mix_seed(7, 3) == ofod_cpp.pricers.mix_seed(7, 3)
 
 
+def test_ziggurat_generator_is_opt_in() -> None:
+    results = []
+    for lib in (ofod, ofod_cpp):
+        p = lib.pricers
+        opt = lib.instruments.VanillaOption(strike=40.0, maturity=0.5)
+        market = p.TreeMarket(42.0, 0.1, 0.0, 0.2)
+        assert p.McOptions().rng == p.Rng.MERSENNE_TWISTER
+        options = p.McOptions(paths=40_000, rng=p.Rng.ZIGGURAT)
+        results.append(p.monte_carlo_european(opt, market, options))
+    a, b = results
+    assert abs(a.price - b.price) < 5 * math.hypot(a.std_error, b.std_error)
+
+
 def test_path_simulator_accepts_python_payoff() -> None:
     p = ofod_cpp.pricers
     r = p.simulate_gbm_paths(

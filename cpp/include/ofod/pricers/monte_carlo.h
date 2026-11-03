@@ -31,11 +31,23 @@ enum class VarianceReduction {
   kQuasiRandom,         // Sobol points, randomly shifted.
 };
 
+// Source of the normal draws. kMersenneTwister (std::mt19937_64 with
+// std::normal_distribution) is the default and the stream behind every
+// seeded result in the golden files. kZiggurat (xoshiro256++ with a
+// ziggurat) is about 8x faster per draw and gives a different, equally
+// valid stream for the same seed. MonteCarloEuropean only; the path
+// simulator and the other engines always use kMersenneTwister.
+enum class Rng {
+  kMersenneTwister,
+  kZiggurat,
+};
+
 struct McOptions {
   int paths = 100'000;
   std::uint64_t seed = 1;
   VarianceReduction method = VarianceReduction::kNone;
   int threads = 1;  // Path simulator only; results do not depend on it.
+  Rng rng = Rng::kMersenneTwister;
 };
 
 struct McResult {
