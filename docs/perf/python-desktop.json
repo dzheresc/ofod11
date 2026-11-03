@@ -1,0 +1,76 @@
+{
+  "python": "3.12.3",
+  "machine": "x86_64",
+  "results": [
+    {
+      "name": "bsm_price",
+      "python_s": 7.375960079953074e-07,
+      "cpp_s": 1.3816614600364118e-07
+    },
+    {
+      "name": "implied_volatility",
+      "python_s": 7.835067200066987e-06,
+      "cpp_s": 3.8264205401355865e-07
+    },
+    {
+      "name": "crr_american_100",
+      "python_s": 0.0028835492600046563,
+      "cpp_s": 4.7508741999627095e-06
+    },
+    {
+      "name": "crr_american_1000",
+      "python_s": 0.29898738401243463,
+      "cpp_s": 0.0002852494890103117
+    },
+    {
+      "name": "trinomial_american_500",
+      "python_s": 0.12652707449888112,
+      "cpp_s": 0.0004438527659804095
+    },
+    {
+      "name": "fd_cn_american_psor_200x100",
+      "python_s": 0.025356106398976407,
+      "cpp_s": 0.00044463131201337094
+    },
+    {
+      "name": "fd_cn_american_brennan_schwartz_200x100",
+      "python_s": 0.01647593745001359,
+      "cpp_s": 0.00030901240500679704
+    },
+    {
+      "name": "mc_european_100k",
+      "python_s": 0.0023374989900912624,
+      "cpp_s": 0.0034838610899169
+    },
+    {
+      "name": "heston_price_1y",
+      "python_s": 0.00036196362899499945,
+      "cpp_s": 1.9458252449840074e-05
+    },
+    {
+      "name": "longstaff_schwartz_10k",
+      "python_s": 0.03542487890081247,
+      "cpp_s": 0.018723438050074037
+    },
+    {
+      "name": "hull_white_bermudan_500",
+      "python_s": 0.10958683849457884,
+      "cpp_s": 0.0012633835100132273
+    },
+    {
+      "name": "tranche_spread_125",
+      "python_s": 0.0683292182016885,
+      "cpp_s": 0.0014236165499460186
+    },
+    {
+      "name": "fit_garch11_1000",
+      "python_s": 0.14579279049939942,
+      "cpp_s": 0.0024249845699523577
+    },
+    {
+      "name": "project_with_options_500",
+      "python_s": 0.007410611980012618,
+      "cpp_s": 0.00039631848099816127
+    }
+  ]
+}

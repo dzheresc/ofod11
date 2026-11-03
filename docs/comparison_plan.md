@@ -102,7 +102,7 @@ QL is QuantLib, FP is FinancePy.
 | `BmLmmMonteCarlo` | 33 | `LiborForwardModel` with `MarketModel` evolvers (`LogNormalFwdRatePc`) | FP `models/lmm_mc.py` (`lmm_simulate_fwds_*`) |
 | `BmHestonMonteCarlo` | 27 | `MCEuropeanHestonEngine` (QE discretisation) | FP `Heston` Monte Carlo |
 | `BmSpikeMonteCarlo` | 35 | `ExtOUWithJumpsProcess` (Kluge model) path generation | - |
-| `BmForwardExposure` | 9 | - | ORE exposure simulation (later) |
+| `BmForwardExposure` | 9 | - | ORE exposure simulation |
 | `BmBumpGreeksTree` | 19 | Bumped `BinomialVanillaEngine` | FP tree Greeks |
 
 ### Not compared
