@@ -24,9 +24,15 @@ int TailCount(std::size_t n, double confidence) {
       std::lround(static_cast<double>(n) * (1.0 - confidence)));
 }
 
-std::vector<double> WorstFirst(std::span<const double> losses) {
+// The k worst losses, worst first. Only the tail is ordered: a partial sort
+// is O(n log k) where a full sort was O(n log n), and the first k elements
+// are the same values in the same order.
+std::vector<double> WorstFirst(std::span<const double> losses, int k) {
   std::vector<double> sorted(losses.begin(), losses.end());
-  std::sort(sorted.begin(), sorted.end(), std::greater<>());
+  const auto tail = static_cast<std::ptrdiff_t>(
+      std::min(static_cast<std::size_t>(k), sorted.size()));
+  std::partial_sort(sorted.begin(), sorted.begin() + tail, sorted.end(),
+                    std::greater<>());
   return sorted;
 }
 
@@ -49,14 +55,14 @@ std::optional<double> HistoricalVar(std::span<const double> losses,
                                     double confidence) {
   const int k = TailCount(losses.size(), confidence);
   if (k < 1) return std::nullopt;
-  return WorstFirst(losses)[static_cast<std::size_t>(k) - 1];
+  return WorstFirst(losses, k)[static_cast<std::size_t>(k) - 1];
 }
 
 std::optional<double> HistoricalExpectedShortfall(
     std::span<const double> losses, double confidence) {
   const int k = TailCount(losses.size(), confidence);
   if (k < 1) return std::nullopt;
-  const std::vector<double> sorted = WorstFirst(losses);
+  const std::vector<double> sorted = WorstFirst(losses, k);
   double sum = 0.0;
   for (int i = 0; i < k; ++i) sum += sorted[static_cast<std::size_t>(i)];
   return sum / k;

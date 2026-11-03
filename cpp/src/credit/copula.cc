@@ -46,35 +46,78 @@ std::vector<double> DefaultCountDistribution(std::span<const double> p) {
   return dist;
 }
 
+namespace {
+
+// ln C(n, k) for k = 0..n.
+std::vector<double> LogBinomialCoefficients(int n) {
+  std::vector<double> out(static_cast<std::size_t>(n) + 1);
+  const double log_n_factorial = std::lgamma(n + 1.0);
+  for (int k = 0; k <= n; ++k) {
+    out[static_cast<std::size_t>(k)] =
+        log_n_factorial - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
+  }
+  return out;
+}
+
+// Every name in a CdoPool has the same conditional default probability p,
+// so the Andersen-Sidenius-Basu recursion (DefaultCountDistribution)
+// reduces to the binomial distribution. Evaluating it directly is O(n)
+// per quadrature node instead of O(n^2); the two agree to rounding.
+double HomogeneousTrancheLoss(const Tranche& tranche, const CdoPool& pool,
+                              std::span<const double> log_choose, double p) {
+  const int n = pool.names;
+  auto loss_at = [&](int k) {
+    return TrancheLoss(tranche,
+                       (1.0 - pool.recovery) * static_cast<double>(k) / n);
+  };
+  if (p <= 0.0) return loss_at(0);
+  if (p >= 1.0) return loss_at(n);
+  const double log_p = std::log(p);
+  const double log_q = std::log1p(-p);
+  double loss = 0.0;
+  for (int k = 0; k <= n; ++k) {
+    const double pmf = std::exp(log_choose[static_cast<std::size_t>(k)] +
+                                k * log_p + (n - k) * log_q);
+    loss += pmf * loss_at(k);
+  }
+  return loss;
+}
+
+double ExpectedTrancheLossWithRule(const Tranche& tranche, const CdoPool& pool,
+                                   double correlation, double t,
+                                   const math::Quadrature& rule,
+                                   std::span<const double> log_choose) {
+  if (t <= 0.0) return 0.0;
+  const double q = 1.0 - std::exp(-pool.hazard * t);
+  double expected = 0.0;
+  for (std::size_t i = 0; i < rule.nodes.size(); ++i) {
+    const double p =
+        q <= 0.0 ? 0.0
+                 : ConditionalDefaultProbability(q, correlation, rule.nodes[i]);
+    expected +=
+        rule.weights[i] * HomogeneousTrancheLoss(tranche, pool, log_choose, p);
+  }
+  return expected;
+}
+
+bool ValidCorrelation(double correlation) {
+  return correlation >= 0.0 && correlation < 1.0;
+}
+
+}  // namespace
+
 std::optional<double> ExpectedTrancheLoss(const Tranche& tranche,
                                           const CdoPool& pool,
                                           double correlation, double t,
                                           int quadrature_points) {
-  if (!ValidPool(pool) || !ValidTranche(tranche) || !(correlation >= 0.0) ||
-      !(correlation < 1.0)) {
+  if (!ValidPool(pool) || !ValidTranche(tranche) ||
+      !ValidCorrelation(correlation)) {
     return std::nullopt;
   }
   const auto rule = math::GaussHermiteNormal(quadrature_points);
   if (!rule) return std::nullopt;
-  if (t <= 0.0) return 0.0;
-  const double q = 1.0 - std::exp(-pool.hazard * t);
-  const auto names = static_cast<std::size_t>(pool.names);
-  double expected = 0.0;
-  for (std::size_t i = 0; i < rule->nodes.size(); ++i) {
-    const double p = q <= 0.0 ? 0.0
-                              : ConditionalDefaultProbability(q, correlation,
-                                                              rule->nodes[i]);
-    const std::vector<double> probs(names, p);
-    const std::vector<double> dist = DefaultCountDistribution(probs);
-    double loss = 0.0;
-    for (std::size_t k = 0; k < dist.size(); ++k) {
-      const double pool_loss =
-          (1.0 - pool.recovery) * static_cast<double>(k) / pool.names;
-      loss += dist[k] * TrancheLoss(tranche, pool_loss);
-    }
-    expected += rule->weights[i] * loss;
-  }
-  return expected;
+  return ExpectedTrancheLossWithRule(tranche, pool, correlation, t, *rule,
+                                     LogBinomialCoefficients(pool.names));
 }
 
 std::optional<TrancheLegs> TrancheLegValues(const Tranche& tranche,
@@ -82,7 +125,15 @@ std::optional<TrancheLegs> TrancheLegValues(const Tranche& tranche,
                                             double correlation,
                                             const CdoTerms& terms,
                                             const curves::ZeroCurve& discount) {
-  if (!(terms.maturity > 0.0) || terms.frequency < 1) return std::nullopt;
+  if (!(terms.maturity > 0.0) || terms.frequency < 1 || !ValidPool(pool) ||
+      !ValidTranche(tranche) || !ValidCorrelation(correlation)) {
+    return std::nullopt;
+  }
+  // The quadrature rule and binomial coefficients are shared by every
+  // payment date.
+  const auto rule = math::GaussHermiteNormal(terms.quadrature_points);
+  if (!rule) return std::nullopt;
+  const std::vector<double> log_choose = LogBinomialCoefficients(pool.names);
   const double dt = 1.0 / terms.frequency;
   const auto periods =
       static_cast<int>(std::ceil(terms.maturity * terms.frequency - 1e-9));
@@ -92,15 +143,14 @@ std::optional<TrancheLegs> TrancheLegValues(const Tranche& tranche,
   double previous_loss = 0.0;
   for (int i = 1; i <= periods; ++i) {
     const double end = std::min(i * dt, terms.maturity);
-    const auto loss = ExpectedTrancheLoss(tranche, pool, correlation, end,
-                                          terms.quadrature_points);
-    if (!loss) return std::nullopt;
+    const double loss = ExpectedTrancheLossWithRule(tranche, pool, correlation,
+                                                    end, *rule, log_choose);
     const double length = end - start;
     const double df_mid = discount.DiscountFactor(0.5 * (start + end));
-    annuity += length * (1.0 - *loss) * discount.DiscountFactor(end) +
-               0.5 * length * (*loss - previous_loss) * df_mid;
-    protection += (*loss - previous_loss) * df_mid;
-    previous_loss = *loss;
+    annuity += length * (1.0 - loss) * discount.DiscountFactor(end) +
+               0.5 * length * (loss - previous_loss) * df_mid;
+    protection += (loss - previous_loss) * df_mid;
+    previous_loss = loss;
     start = end;
   }
   return TrancheLegs{.premium_annuity = annuity, .protection = protection};

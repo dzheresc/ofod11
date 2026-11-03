@@ -23,6 +23,9 @@ enum class AmericanSolver {
   kPsor,        // Projected SOR: solves the linear complementarity problem.
   kProjection,  // Solve, then take the max with intrinsic value (Hull's
                 // Table 21.5); first-order accurate in time.
+  kBrennanSchwartz,  // Direct LCP solve in one projected Thomas sweep. Exact
+                     // for vanilla puts and calls when the system is an
+                     // M-matrix; falls back to PSOR otherwise.
 };
 
 // Uniform grid in S (Hull's layout) or, with log_space, in ln S. A log

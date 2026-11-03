@@ -54,6 +54,10 @@ class CommodityTree {
   double dx_ = 0.0;
   int jmax_ = 0;
   std::vector<double> alphas_;
+  // S = e^{alpha_i} e^{j dx}: both factors are tabulated so that Price()
+  // needs no exp() (M12 profiling in docs/PERF.md).
+  std::vector<double> step_level_;      // e^{alpha_i}, indexed by step.
+  std::vector<double> node_growth_;     // e^{j dx}, indexed by j + jmax.
   std::vector<Branch> branches_;        // Indexed by j + jmax.
   std::vector<std::vector<double>> p_;  // Node probabilities per step.
 };

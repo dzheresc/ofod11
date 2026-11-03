@@ -61,6 +61,9 @@ std::optional<ShortRateTree> ShortRateTree::Build(
   for (int j = -tree.jmax_; j <= tree.jmax_; ++j) {
     tree.branches_.push_back(HullBranch(j, tree.jmax_, m));
     tree.node_discount_.push_back(std::exp(-j * tree.dx_ * dt));
+    if (model == ShortRateModel::kBlackKarasinski) {
+      tree.node_growth_.push_back(std::exp(j * tree.dx_));
+    }
   }
   tree.q_.push_back({1.0});
   for (int i = 0; i < steps; ++i) {
@@ -75,16 +78,58 @@ std::optional<ShortRateTree> ShortRateTree::Build(
       }
       alpha = (std::log(sum) - std::log(target)) / dt;
     } else {
+      // r = e^alpha e^{j dx}: with e^{j dx} tabulated, each trial alpha
+      // costs one exp() per node instead of two.
       auto error = [&](double x) {
+        const double scale = std::exp(x) * dt;
         double sum = 0.0;
         for (int j = -w; j <= w; ++j) {
-          sum += q[Index(j, w)] * std::exp(-std::exp(x + j * tree.dx_) * dt);
+          sum += q[Index(j, w)] *
+                 std::exp(-scale * tree.node_growth_[Index(j, tree.jmax_)]);
         }
         return sum - target;
       };
-      const auto root = math::Brent(error, -30.0, 3.0);
+      // Newton-Raphson from the previous step's alpha, as Hull suggests:
+      // the value and the slope share each node's exp(), and alpha moves
+      // little between steps, so it converges in a few iterations where
+      // Brent on [-30, 3] needed dozens. Brent remains the fallback.
+      std::optional<double> root;
+      double x = tree.alphas_.empty() ? std::log(curve.ForwardRate(0.0, dt))
+                                      : tree.alphas_.back();
+      for (int it = 0; it < 50 && std::isfinite(x); ++it) {
+        const double scale = std::exp(x) * dt;
+        double value = -target;
+        double slope = 0.0;
+        for (int j = -w; j <= w; ++j) {
+          const double rdt = scale * tree.node_growth_[Index(j, tree.jmax_)];
+          const double term = q[Index(j, w)] * std::exp(-rdt);
+          value += term;
+          slope -= term * rdt;
+        }
+        if (!(slope < 0.0)) break;
+        const double step = value / slope;
+        x -= step;
+        // Rounding in the sum limits alpha to about 1e-13, so stop at
+        // Brent's tolerance.
+        if (std::abs(step) < 1e-12) {
+          root = x;
+          break;
+        }
+      }
+      if (!root || !(*root > -30.0 && *root < 3.0)) {
+        root = math::Brent(error, -30.0, 3.0);
+      }
       if (!root) return std::nullopt;
       alpha = *root;
+      // Store this step's node discount factors so that neither the
+      // forward induction below nor any rollback calls exp() again.
+      const double scale = std::exp(alpha) * dt;
+      std::vector<double> discount(Index(w, w) + 1);
+      for (int j = -w; j <= w; ++j) {
+        discount[Index(j, w)] =
+            std::exp(-scale * tree.node_growth_[Index(j, tree.jmax_)]);
+      }
+      tree.bk_discount_.push_back(std::move(discount));
     }
     tree.alphas_.push_back(alpha);
     tree.step_discount_.push_back(std::exp(-alpha * dt));
@@ -114,7 +159,7 @@ double ShortRateTree::Discount(int step, int j) const {
     return step_discount_[static_cast<std::size_t>(step)] *
            node_discount_[Index(j, jmax_)];
   }
-  return std::exp(-Rate(step, j) * dt_);
+  return bk_discount_[static_cast<std::size_t>(step)][Index(j, Width(step))];
 }
 
 const Branch& ShortRateTree::BranchAt(int j) const {

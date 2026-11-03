@@ -88,9 +88,13 @@ class ShortRateTree {
   std::vector<double> alphas_;
   // Hull-White discount factors factor as e^{-alpha_i dt} e^{-j dx dt}, so
   // rollbacks need no exp() (Ch 32 profiling in docs/PERF.md).
-  std::vector<double> step_discount_;   // Indexed by step.
-  std::vector<double> node_discount_;   // Indexed by j + jmax.
-  std::vector<Branch> branches_;        // Indexed by j + jmax.
+  std::vector<double> step_discount_;  // Indexed by step.
+  std::vector<double> node_discount_;  // Indexed by j + jmax.
+  // Black-Karasinski rates e^{alpha_i} e^{j dx} do not factor inside the
+  // discount exp(-r dt), so each step's node discounts are tabulated once.
+  std::vector<double> node_growth_;               // e^{j dx}, j + jmax.
+  std::vector<std::vector<double>> bk_discount_;  // [step][j + Width].
+  std::vector<Branch> branches_;                  // Indexed by j + jmax.
   std::vector<std::vector<double>> q_;  // Arrow-Debreu prices per step.
 };
 

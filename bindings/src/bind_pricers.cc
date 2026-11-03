@@ -368,7 +368,8 @@ void BindPricers(nb::module_& m) {
       .value("CRANK_NICOLSON", FdScheme::kCrankNicolson);
   nb::enum_<AmericanSolver>(m, "AmericanSolver")
       .value("PSOR", AmericanSolver::kPsor)
-      .value("PROJECTION", AmericanSolver::kProjection);
+      .value("PROJECTION", AmericanSolver::kProjection)
+      .value("BRENNAN_SCHWARTZ", AmericanSolver::kBrennanSchwartz);
   nb::class_<FdGrid>(m, "FdGrid")
       .def(
           "__init__",

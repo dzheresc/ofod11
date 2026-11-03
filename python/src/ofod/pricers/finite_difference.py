@@ -21,6 +21,9 @@ class AmericanSolver(enum.Enum):
 
     PSOR = "psor"
     PROJECTION = "projection"
+    # Direct LCP solve in one projected Thomas sweep; exact for vanilla
+    # puts and calls on an M-matrix, PSOR otherwise.
+    BRENNAN_SCHWARTZ = "brennan_schwartz"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -74,6 +77,52 @@ def _psor(
             x[i] = nxt
         if change < 1e-12:
             return
+
+
+def _is_dominant_m_matrix(
+    lo: list[float], mid: list[float], hi: list[float]
+) -> bool:
+    return all(
+        a <= 0.0 and c <= 0.0 and b >= -a - c
+        for a, b, c in zip(lo, mid, hi, strict=True)
+    )
+
+
+def _brennan_schwartz(
+    lo: list[float],
+    mid: list[float],
+    hi: list[float],
+    rhs: list[float],
+    floor: list[float],
+    exercise_at_top: bool,
+) -> list[float]:
+    """Projected Thomas sweep (Brennan-Schwartz) for the American LCP.
+
+    A put exercises at the bottom of the grid, so the system is eliminated
+    upwards and substituted from the bottom; a call runs the usual Thomas
+    algorithm and projects on the way back down.
+    """
+    mid = list(mid)
+    rhs = list(rhs)
+    n = len(rhs)
+    x = [0.0] * n
+    if exercise_at_top:
+        for i in range(1, n):
+            w = lo[i] / mid[i - 1]
+            mid[i] -= w * hi[i - 1]
+            rhs[i] -= w * rhs[i - 1]
+        x[-1] = max(floor[-1], rhs[-1] / mid[-1])
+        for i in range(n - 2, -1, -1):
+            x[i] = max(floor[i], (rhs[i] - hi[i] * x[i + 1]) / mid[i])
+    else:
+        for i in range(n - 2, -1, -1):
+            w = hi[i] / mid[i + 1]
+            mid[i] -= w * lo[i + 1]
+            rhs[i] -= w * rhs[i + 1]
+        x[0] = max(floor[0], rhs[0] / mid[0])
+        for i in range(1, n):
+            x[i] = max(floor[i], (rhs[i] - lo[i] * x[i - 1]) / mid[i])
+    return x
 
 
 def price_finite_difference(
@@ -167,8 +216,17 @@ def price_finite_difference(
                 x = _solve_tridiagonal(lo, mid, hi, rhs)
                 x = [max(v, intrinsic[i + 1]) for i, v in enumerate(x)]
             elif is_american:
-                x = f[1:-1]
-                _psor(lo, mid, hi, rhs, intrinsic[1:-1], x)
+                floor = intrinsic[1:-1]
+                m_matrix = _is_dominant_m_matrix(lo, mid, hi)
+                if m_matrix:
+                    x = _brennan_schwartz(lo, mid, hi, rhs, floor, call)
+                else:
+                    x = f[1:-1]
+                direct = american is AmericanSolver.BRENNAN_SCHWARTZ
+                if not (direct and m_matrix):
+                    # PSOR from the Brennan-Schwartz start only confirms
+                    # convergence; otherwise it starts from the last step.
+                    _psor(lo, mid, hi, rhs, floor, x)
             else:
                 x = _solve_tridiagonal(lo, mid, hi, rhs)
             nxt[1:-1] = x

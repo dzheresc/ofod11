@@ -185,5 +185,35 @@ TEST_CASE("Finite differences converge to BSM", "[fd][ch21]") {
       FdScheme::kImplicit));
 }
 
+TEST_CASE("Brennan-Schwartz solves the same LCP as PSOR", "[fd][ch21]") {
+  // Puts exercise at the bottom of the grid, calls with a yield at the
+  // top; both schemes and both grid layouts.
+  const TreeMarket market{
+      .spot = 50.0, .rate = 0.10, .yield = 0.08, .volatility = 0.40};
+  const FdGrid s_grid{.s_max = 200, .price_steps = 200, .time_steps = 100};
+  const FdGrid log_grid{.s_min = 1,
+                        .s_max = 200,
+                        .price_steps = 200,
+                        .time_steps = 100,
+                        .log_space = true};
+  for (auto type : {OptionType::kPut, OptionType::kCall}) {
+    const VanillaOption option{.option_type = type,
+                               .exercise = Exercise::kAmerican,
+                               .strike = 50.0,
+                               .maturity = 5.0 / 12.0};
+    for (const auto& grid : {s_grid, log_grid}) {
+      for (auto scheme : {FdScheme::kImplicit, FdScheme::kCrankNicolson}) {
+        const auto psor = PriceFiniteDifference(option, market, grid, scheme,
+                                                AmericanSolver::kPsor);
+        const auto direct = PriceFiniteDifference(
+            option, market, grid, scheme, AmericanSolver::kBrennanSchwartz);
+        REQUIRE(psor.has_value());
+        REQUIRE(direct.has_value());
+        CHECK_THAT(*direct, WithinAbs(*psor, 1e-10));
+      }
+    }
+  }
+}
+
 }  // namespace
 }  // namespace ofod::pricers
