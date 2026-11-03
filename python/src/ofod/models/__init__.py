@@ -4,6 +4,13 @@ from ofod.models.brownian import ArithmeticBrownianMotion
 from ofod.models.brownian import GeometricBrownianMotion
 from ofod.models.brownian import Interval
 from ofod.models.brownian import quadratic_variation
+from ofod.models.commodity import SeasonalCurve
+from ofod.models.commodity import SpikeEstimate
+from ofod.models.commodity import SpikeModel
+from ofod.models.commodity import fit_seasonal_curve
+from ofod.models.commodity import simulate_spike_path
+from ofod.models.commodity import spike_expected_price
+from ofod.models.commodity import spike_monte_carlo
 from ofod.models.lmm import HjmSpec
 from ofod.models.lmm import LmmOptions
 from ofod.models.lmm import LmmPaths
@@ -41,10 +48,14 @@ __all__ = [
     "LmmPaths",
     "LmmPayoff",
     "LmmSpec",
+    "SeasonalCurve",
+    "SpikeEstimate",
+    "SpikeModel",
     "Vasicek",
     "bond_price",
     "calibrate_hull_white",
     "estimate_vasicek",
+    "fit_seasonal_curve",
     "hjm_zero_bond_option",
     "lmm_discount_factors",
     "lmm_monte_carlo",
@@ -53,6 +64,9 @@ __all__ = [
     "quadratic_variation",
     "rebonato_swaption_volatility",
     "simulate_cir",
+    "simulate_spike_path",
+    "spike_expected_price",
+    "spike_monte_carlo",
     "zero_bond_option_formula",
     "zero_bond_option_price",
     "zero_rate",

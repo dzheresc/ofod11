@@ -1,0 +1,116 @@
+{
+  "chapter": 36,
+  "cases": [
+    {
+      "id": "market_price_of_risk",
+      "ref": "Ch 36.2: rho = 0.7 with the market, market excess return 6%, market vol 20% gives lambda = 0.21",
+      "kind": "market_price_of_risk",
+      "inputs": {
+        "correlation": 0.7,
+        "market_return": 0.1,
+        "rate": 0.04,
+        "market_vol": 0.2
+      },
+      "expected": 0.21,
+      "tol": 1e-12
+    },
+    {
+      "id": "risk_neutral_pv",
+      "ref": "Ch 36.3 risk-neutral PV of expected cash flows 100, 110, 120, lambda = 0.21, sigma = 25%, r = 4% (computed)",
+      "kind": "risk_neutral_pv",
+      "inputs": {
+        "times": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "expected": [
+          100.0,
+          110.0,
+          120.0
+        ],
+        "lambda": 0.21,
+        "vol": 0.25,
+        "rate": 0.04
+      },
+      "expected": 273.5074600725369,
+      "tol": 1e-10
+    },
+    {
+      "id": "abandon_expand_contract",
+      "ref": "Ch 36.5 project worth 100 with options to abandon for 90, expand 30% for 25 and contract 30% saving 25 (computed)",
+      "kind": "project_options",
+      "inputs": {
+        "value": 100.0,
+        "vol": 0.3,
+        "rate": 0.05,
+        "payout": 0.04,
+        "maturity": 2.0,
+        "steps": 200,
+        "options": [
+          {
+            "kind": "abandon",
+            "salvage": 90.0
+          },
+          {
+            "kind": "expand",
+            "factor": 1.3,
+            "cost": 25.0
+          },
+          {
+            "kind": "contract",
+            "factor": 0.7,
+            "saving": 25.0
+          }
+        ]
+      },
+      "expected": 117.31175354210713,
+      "tol": 1e-09
+    },
+    {
+      "id": "deferral_option",
+      "ref": "Ch 36.5 option to defer a 110 investment for 2 years (computed)",
+      "kind": "deferral_option",
+      "inputs": {
+        "value": 100.0,
+        "vol": 0.3,
+        "rate": 0.05,
+        "payout": 0.04,
+        "maturity": 2.0,
+        "steps": 200,
+        "cost": 110.0
+      },
+      "expected": 12.897390605475675,
+      "tol": 1e-09
+    },
+    {
+      "id": "extraction_project",
+      "ref": "Ch 36.5 3-year project on the Ch 35.4 tree: 2 units a year, variable cost 17, fixed 6, r = 10%; abandon for 0, expand 20% for 2: [base, abandon, expand] (computed)",
+      "kind": "extraction_project",
+      "inputs": {
+        "spot": 20.0,
+        "futures": [
+          22.0,
+          23.0,
+          24.0
+        ],
+        "a": 0.1,
+        "sigma": 0.2,
+        "dt": 1.0,
+        "production": 2.0,
+        "variable_cost": 17.0,
+        "fixed_cost": 6.0,
+        "rate": 0.1,
+        "abandon_value": 0.0,
+        "expand_factor": 1.2,
+        "expand_cost": 2.0
+      },
+      "expected": [
+        14.458279956065477,
+        19.07052407633606,
+        16.740336361955833
+      ],
+      "tol": 1e-10
+    }
+  ]
+}

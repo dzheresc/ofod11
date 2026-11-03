@@ -43,7 +43,11 @@ class TreeCashFlow:
     amount: float
 
 
-def _make_branch(j: int, jmax: int, m: float) -> Branch:
+def hull_branch(j: int, jmax: int, m: float) -> Branch:
+    """Hull's branching from node j with M = -a dt (Ch 32.6).
+
+    Normal branching inside the tree, (b) at j = -jmax and (c) at jmax.
+    """
     jm = j * m
     jm2 = jm * jm
     if j == jmax and jmax > 0:
@@ -98,7 +102,7 @@ class ShortRateTree:
             self._jmax = steps
         m = -a * dt
         self._branches = [
-            _make_branch(j, self._jmax, m)
+            hull_branch(j, self._jmax, m)
             for j in range(-self._jmax, self._jmax + 1)
         ]
         # Hull-White discount factors factor as e^{-alpha dt} e^{-j dx dt}.

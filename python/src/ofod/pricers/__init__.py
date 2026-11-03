@@ -50,6 +50,8 @@ from ofod.pricers.bounds import european_call_lower_bound
 from ofod.pricers.bounds import european_put_lower_bound
 from ofod.pricers.bounds import european_put_upper_bound
 from ofod.pricers.bounds import put_from_parity
+from ofod.pricers.commodity_tree import CommodityTree
+from ofod.pricers.commodity_tree import commodity_tree_option
 from ofod.pricers.eso import EsoTerms
 from ofod.pricers.eso import expected_life_value
 from ofod.pricers.eso import price_employee_stock_option
@@ -133,10 +135,28 @@ from ofod.pricers.rate_options import forward_swap_rate
 from ofod.pricers.rate_options import parallel_dv01
 from ofod.pricers.rate_options import price_volatility_from_yield
 from ofod.pricers.rate_options import strip_caplet_volatilities
+from ofod.pricers.real_options import Abandon
+from ofod.pricers.real_options import BusinessSpec
+from ofod.pricers.real_options import BusinessValue
+from ofod.pricers.real_options import Contract
+from ofod.pricers.real_options import Expand
+from ofod.pricers.real_options import ExtractionProject
+from ofod.pricers.real_options import ProjectLattice
+from ofod.pricers.real_options import ProjectOption
+from ofod.pricers.real_options import ProjectValuation
+from ofod.pricers.real_options import deferral_option
+from ofod.pricers.real_options import exercise_value
+from ofod.pricers.real_options import market_price_of_risk
+from ofod.pricers.real_options import project_with_options
+from ofod.pricers.real_options import risk_neutral_growth
+from ofod.pricers.real_options import risk_neutral_present_value
+from ofod.pricers.real_options import value_business
+from ofod.pricers.real_options import value_extraction_project
 from ofod.pricers.short_rate_tree import Branch
 from ofod.pricers.short_rate_tree import ShortRateModel
 from ofod.pricers.short_rate_tree import ShortRateTree
 from ofod.pricers.short_rate_tree import TreeCashFlow
+from ofod.pricers.short_rate_tree import hull_branch
 from ofod.pricers.short_rate_tree import tree_bond_option
 from ofod.pricers.short_rate_tree import tree_swaption
 from ofod.pricers.smile import binary_jump_price
@@ -151,26 +171,56 @@ from ofod.pricers.swap_pricer import floating_leg_bond_value
 from ofod.pricers.swap_pricer import par_swap_rate
 from ofod.pricers.swap_pricer import swap_value
 from ofod.pricers.swap_pricer import swap_value_as_fras
+from ofod.pricers.weather_insurance import CatBondTerms
+from ofod.pricers.weather_insurance import CatBondValue
+from ofod.pricers.weather_insurance import DegreeDayKind
+from ofod.pricers.weather_insurance import DegreeDayOption
+from ofod.pricers.weather_insurance import DegreeDaySimulation
+from ofod.pricers.weather_insurance import ExpectationEstimate
+from ofod.pricers.weather_insurance import LossModel
+from ofod.pricers.weather_insurance import SeasonSpec
+from ofod.pricers.weather_insurance import TemperatureModel
+from ofod.pricers.weather_insurance import burn_analysis
+from ofod.pricers.weather_insurance import degree_day_payoff
+from ofod.pricers.weather_insurance import degree_days
+from ofod.pricers.weather_insurance import excess_of_loss_layer
+from ofod.pricers.weather_insurance import fit_temperature_model
+from ofod.pricers.weather_insurance import price_cat_bond
+from ofod.pricers.weather_insurance import simulate_degree_day_option
 
 __all__ = [
+    "Abandon",
     "AmericanSolver",
     "BarrierType",
     "Branch",
+    "BusinessSpec",
+    "BusinessValue",
     "CHUNK_PATHS",
     "CapTerms",
+    "CatBondTerms",
+    "CatBondValue",
     "CmsLeg",
     "CmsTerms",
+    "CommodityTree",
     "CompoundType",
+    "Contract",
     "ConvertibleTerms",
     "CurvePricer",
+    "DegreeDayKind",
+    "DegreeDayOption",
+    "DegreeDaySimulation",
     "EsoTerms",
     "ExchangeAssets",
+    "Expand",
+    "ExpectationEstimate",
+    "ExtractionProject",
     "FdGrid",
     "FdScheme",
     "ForwardArbitrage",
     "ForwardSwap",
     "HestonParams",
     "JumpParams",
+    "LossModel",
     "LsmOptions",
     "MbsCashFlow",
     "MbsMcOptions",
@@ -178,11 +228,16 @@ __all__ = [
     "McOptions",
     "McResult",
     "MortgagePool",
+    "ProjectLattice",
+    "ProjectOption",
+    "ProjectValuation",
     "Range",
     "RefinancingModel",
+    "SeasonSpec",
     "ShortRateModel",
     "ShortRateTree",
     "SwapPeriod",
+    "TemperatureModel",
     "TreeCashFlow",
     "TreeMarket",
     "TreeResult",
@@ -213,6 +268,7 @@ __all__ = [
     "bsm_price",
     "bsm_price_with_dividends",
     "bucket_dv01",
+    "burn_analysis",
     "call_early_exercise_may_be_optimal",
     "call_from_parity",
     "call_upper_bound",
@@ -224,6 +280,7 @@ __all__ = [
     "chooser_price",
     "cms_rate",
     "cms_swap_value",
+    "commodity_tree_option",
     "comparative_advantage_gain",
     "compound_option_price",
     "control_variate_american_price",
@@ -231,12 +288,18 @@ __all__ = [
     "convexity",
     "convexity_adjustment",
     "currency_swap_value",
+    "deferral_option",
+    "degree_day_payoff",
+    "degree_days",
     "detect_forward_arbitrage",
     "european_call_lower_bound",
     "european_put_lower_bound",
     "european_put_upper_bound",
+    "excess_of_loss_layer",
     "exchange_option_price",
+    "exercise_value",
     "expected_life_value",
+    "fit_temperature_model",
     "fixed_leg_bond_value",
     "fixed_lookback_price",
     "floating_leg_bond_value",
@@ -257,6 +320,7 @@ __all__ = [
     "geometric_asian_price",
     "heston_monte_carlo",
     "heston_price",
+    "hull_branch",
     "implied_density",
     "implied_volatility",
     "in_arrears_rate",
@@ -264,6 +328,7 @@ __all__ = [
     "lognormal_density",
     "longstaff_schwartz",
     "macaulay_duration",
+    "market_price_of_risk",
     "mbs_monte_carlo",
     "merton_jump_price",
     "minimum_variance_delta",
@@ -280,18 +345,23 @@ __all__ = [
     "present_value",
     "price_binomial",
     "price_binomial_with_dividends",
+    "price_cat_bond",
     "price_employee_stock_option",
     "price_finite_difference",
     "price_tree",
     "price_trinomial",
     "price_volatility_from_yield",
+    "project_with_options",
     "psa_cpr",
     "put_from_parity",
     "quanto_adjustment_factor",
+    "risk_neutral_growth",
+    "risk_neutral_present_value",
     "risk_neutral_probability",
     "schedule_swap_value",
     "scheme_step",
     "simple_forward_rate",
+    "simulate_degree_day_option",
     "simulate_gbm_paths",
     "strike_from_delta",
     "strip_caplet_volatilities",
@@ -301,7 +371,9 @@ __all__ = [
     "timing_adjustment_factor",
     "tree_bond_option",
     "tree_swaption",
+    "value_business",
     "value_cash_flows",
+    "value_extraction_project",
     "variance_swap_fair_variance",
     "warrant_price",
 ]

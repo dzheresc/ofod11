@@ -24,6 +24,7 @@ NB_MODULE(_core, m) {
   ofod::bindings::BindPricers(pricers);
   ofod::bindings::BindExotics(pricers);
   ofod::bindings::BindRates(pricers, models);
+  ofod::bindings::BindCommodities(pricers, models);
   nanobind::module_ greeks = m.def_submodule("greeks", "ofod::greeks");
   ofod::bindings::BindGreeks(greeks);
   nanobind::module_ stats = m.def_submodule("stats", "ofod::stats");

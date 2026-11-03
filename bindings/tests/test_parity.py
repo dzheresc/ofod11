@@ -28,7 +28,7 @@ _SUBMODULES = (
     "strategies",
 )
 # Typing-only names (Protocols) have no runtime counterpart in C++.
-_TYPING_ONLY = {"Payoff", "CurvePricer", "LmmPayoff"}
+_TYPING_ONLY = {"Payoff", "CurvePricer", "LmmPayoff", "ProjectOption"}
 
 
 @pytest.mark.parametrize("name", _SUBMODULES)

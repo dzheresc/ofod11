@@ -33,6 +33,7 @@
 #include "ofod/math/linalg.h"
 #include "ofod/math/normal.h"
 #include "ofod/models/brownian.h"
+#include "ofod/models/commodity.h"
 #include "ofod/models/lmm.h"
 #include "ofod/models/short_rate.h"
 #include "ofod/pricers/adjustments.h"
@@ -41,6 +42,7 @@
 #include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
+#include "ofod/pricers/commodity_tree.h"
 #include "ofod/pricers/eso.h"
 #include "ofod/pricers/exotic_swaps.h"
 #include "ofod/pricers/exotics.h"
@@ -50,9 +52,11 @@
 #include "ofod/pricers/model_pricers.h"
 #include "ofod/pricers/monte_carlo.h"
 #include "ofod/pricers/rate_options.h"
+#include "ofod/pricers/real_options.h"
 #include "ofod/pricers/short_rate_tree.h"
 #include "ofod/pricers/smile.h"
 #include "ofod/pricers/swap_pricer.h"
+#include "ofod/pricers/weather_insurance.h"
 #include "ofod/random/normal_generator.h"
 #include "ofod/random/sobol.h"
 #include "ofod/risk/hedging.h"
@@ -975,6 +979,115 @@ std::optional<std::vector<double>> EvaluateM10Vector(const std::string& kind,
   return std::nullopt;
 }
 
+std::optional<double> EvaluateM11(const std::string& kind, const json& in) {
+  namespace p = pricers;
+  if (kind == "commodity_tree_option") {
+    const auto tree = p::CommodityTree::Build(
+        in["spot"], in["futures"].get<std::vector<double>>(), in["a"],
+        in["sigma"], in["dt"]);
+    REQUIRE(tree.has_value());
+    const auto exercise = in["exercise"] == "american"
+                              ? instruments::Exercise::kAmerican
+                              : instruments::Exercise::kEuropean;
+    return Value(p::CommodityTreeOption(*tree, ParseType(in["type"]), exercise,
+                                        in["strike"], in["expiry_step"],
+                                        in["rate"]));
+  }
+  if (kind == "spike_expected_price") {
+    const models::SpikeModel m{.log_level = in["log_level"],
+                               .a = in["a"],
+                               .sigma = in["sigma"],
+                               .intensity = in["intensity"],
+                               .jump_mean = in["jump_mean"],
+                               .jump_vol = in["jump_vol"]};
+    return Value(models::SpikeExpectedPrice(m, in["x0"], in["t"]));
+  }
+  if (kind == "degree_days") {
+    return p::DegreeDays(in["kind"] == "heating" ? p::DegreeDayKind::kHeating
+                                                 : p::DegreeDayKind::kCooling,
+                         in["temperatures"].get<std::vector<double>>(),
+                         in["base"]);
+  }
+  if (kind == "burn_analysis") {
+    const p::DegreeDayOption option{.type = ParseType(in["type"]),
+                                    .strike = in["strike"],
+                                    .tick = in["tick"],
+                                    .cap = in["cap"]};
+    const auto r =
+        p::BurnAnalysis(option, in["seasons"].get<std::vector<double>>(),
+                        in["rate"], in["maturity"]);
+    REQUIRE(r.has_value());
+    return r->value;
+  }
+  if (kind == "market_price_of_risk") {
+    return p::MarketPriceOfRisk(in["correlation"], in["market_return"],
+                                in["rate"], in["market_vol"]);
+  }
+  if (kind == "risk_neutral_pv") {
+    return Value(
+        p::RiskNeutralPresentValue(in["times"].get<std::vector<double>>(),
+                                   in["expected"].get<std::vector<double>>(),
+                                   in["lambda"], in["vol"], in["rate"]));
+  }
+  if (kind == "project_options" || kind == "deferral_option") {
+    const p::ProjectLattice lattice{.value = in["value"],
+                                    .volatility = in["vol"],
+                                    .rate = in["rate"],
+                                    .payout = in["payout"],
+                                    .maturity = in["maturity"],
+                                    .steps = in["steps"]};
+    if (kind == "deferral_option") {
+      return Value(p::DeferralOption(lattice, in["cost"]));
+    }
+    std::vector<p::ProjectOption> options;
+    for (const json& o : in["options"]) {
+      if (o["kind"] == "abandon") {
+        options.emplace_back(p::Abandon{o["salvage"]});
+      } else if (o["kind"] == "expand") {
+        options.emplace_back(p::Expand{o["factor"], o["cost"]});
+      } else {
+        options.emplace_back(p::Contract{o["factor"], o["saving"]});
+      }
+    }
+    return Value(p::ProjectWithOptions(lattice, options));
+  }
+  return std::nullopt;
+}
+
+std::optional<std::vector<double>> EvaluateM11Vector(const std::string& kind,
+                                                     const json& in) {
+  namespace p = pricers;
+  if (kind == "commodity_tree_alphas" || kind == "extraction_project") {
+    const auto tree = p::CommodityTree::Build(
+        in["spot"], in["futures"].get<std::vector<double>>(), in["a"],
+        in["sigma"], in["dt"]);
+    REQUIRE(tree.has_value());
+    if (kind == "commodity_tree_alphas") {
+      return std::vector<double>(tree->alphas().begin(), tree->alphas().end());
+    }
+    const auto v =
+        p::ValueExtractionProject(*tree, {.production = in["production"],
+                                          .variable_cost = in["variable_cost"],
+                                          .fixed_cost = in["fixed_cost"],
+                                          .rate = in["rate"],
+                                          .abandon_value = in["abandon_value"],
+                                          .expand_factor = in["expand_factor"],
+                                          .expand_cost = in["expand_cost"]});
+    REQUIRE(v.has_value());
+    return std::vector<double>{v->base, v->with_abandon, v->with_expand};
+  }
+  if (kind == "seasonal_fit") {
+    const auto fit =
+        models::FitSeasonalCurve(in["maturities"].get<std::vector<double>>(),
+                                 in["futures"].get<std::vector<double>>());
+    REQUIRE(fit.has_value());
+    std::vector<double> out = {fit->level, fit->growth};
+    out.insert(out.end(), fit->factors.begin(), fit->factors.end());
+    return out;
+  }
+  return std::nullopt;
+}
+
 // Returns the value the library computes for one scalar case.
 double EvaluateScalar(const std::string& kind, const json& in) {
   if (kind == "growth_factor") {
@@ -1278,6 +1391,7 @@ double EvaluateScalar(const std::string& kind, const json& in) {
   if (const auto v = EvaluateM8(kind, in)) return *v;
   if (const auto v = EvaluateM9(kind, in)) return *v;
   if (const auto v = EvaluateM10(kind, in)) return *v;
+  if (const auto v = EvaluateM11(kind, in)) return *v;
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -1368,6 +1482,7 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
   if (auto v = EvaluateM7Vector(kind, in)) return *std::move(v);
   if (auto v = EvaluateM8Vector(kind, in)) return *std::move(v);
   if (auto v = EvaluateM10Vector(kind, in)) return *std::move(v);
+  if (auto v = EvaluateM11Vector(kind, in)) return *std::move(v);
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -1513,6 +1628,15 @@ TEST_CASE("Golden: Chapter 33 modeling forward rates", "[golden][ch33]") {
 
 TEST_CASE("Golden: Chapter 34 swaps revisited", "[golden][ch34]") {
   RunChapter(34);
+}
+
+TEST_CASE("Golden: Chapter 35 energy and commodity derivatives",
+          "[golden][ch35]") {
+  RunChapter(35);
+}
+
+TEST_CASE("Golden: Chapter 36 real options", "[golden][ch36]") {
+  RunChapter(36);
 }
 
 }  // namespace

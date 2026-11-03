@@ -1087,6 +1087,104 @@ def _evaluate_m10(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _evaluate_m11(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 35 and 36; returns None for other kinds."""
+    p = lib.pricers
+    md = lib.models
+    if kind in ("commodity_tree_alphas", "extraction_project"):
+        tree = p.CommodityTree(
+            i["spot"], i["futures"], i["a"], i["sigma"], i["dt"]
+        )
+        if kind == "commodity_tree_alphas":
+            return list(tree.alphas)
+        v = p.value_extraction_project(
+            tree,
+            p.ExtractionProject(
+                i["production"],
+                i["variable_cost"],
+                i["fixed_cost"],
+                i["rate"],
+                i["abandon_value"],
+                i["expand_factor"],
+                i["expand_cost"],
+            ),
+        )
+        return [v.base, v.with_abandon, v.with_expand]
+    if kind == "commodity_tree_option":
+        tree = p.CommodityTree(
+            i["spot"], i["futures"], i["a"], i["sigma"], i["dt"]
+        )
+        exercise = (
+            lib.instruments.Exercise.AMERICAN
+            if i["exercise"] == "american"
+            else lib.instruments.Exercise.EUROPEAN
+        )
+        return p.commodity_tree_option(
+            tree,
+            _otype(lib, i["type"]),
+            exercise,
+            i["strike"],
+            i["expiry_step"],
+            i["rate"],
+        )
+    if kind == "seasonal_fit":
+        fit = md.fit_seasonal_curve(i["maturities"], i["futures"])
+        return [fit.level, fit.growth, *fit.factors]
+    if kind == "spike_expected_price":
+        m = md.SpikeModel(
+            i["log_level"],
+            i["a"],
+            i["sigma"],
+            i["intensity"],
+            i["jump_mean"],
+            i["jump_vol"],
+        )
+        return md.spike_expected_price(m, i["x0"], i["t"])
+    if kind == "degree_days":
+        dd_kind = (
+            p.DegreeDayKind.HEATING
+            if i["kind"] == "heating"
+            else p.DegreeDayKind.COOLING
+        )
+        return p.degree_days(dd_kind, i["temperatures"], i["base"])
+    if kind == "burn_analysis":
+        option = p.DegreeDayOption(
+            _otype(lib, i["type"]), i["strike"], i["tick"], i["cap"]
+        )
+        return p.burn_analysis(
+            option, i["seasons"], i["rate"], i["maturity"]
+        ).value
+    if kind == "market_price_of_risk":
+        return p.market_price_of_risk(
+            i["correlation"], i["market_return"], i["rate"], i["market_vol"]
+        )
+    if kind == "risk_neutral_pv":
+        return p.risk_neutral_present_value(
+            i["times"], i["expected"], i["lambda"], i["vol"], i["rate"]
+        )
+    if kind in ("project_options", "deferral_option"):
+        lattice = p.ProjectLattice(
+            i["value"],
+            i["vol"],
+            i["rate"],
+            i["payout"],
+            i["maturity"],
+            i["steps"],
+        )
+        if kind == "deferral_option":
+            return p.deferral_option(lattice, i["cost"])
+        options = []
+        for o in i["options"]:
+            if o["kind"] == "abandon":
+                options.append(p.Abandon(o["salvage"]))
+            elif o["kind"] == "expand":
+                options.append(p.Expand(o["factor"], o["cost"]))
+            else:
+                options.append(p.Contract(o["factor"], o["saving"]))
+        return p.project_with_options(lattice, options)
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -1175,6 +1273,7 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         _evaluate_m8,
         _evaluate_m9,
         _evaluate_m10,
+        _evaluate_m11,
     ):
         result = extra(lib, kind, i)
         if result is not None:

@@ -11,7 +11,14 @@ The repo holds three independent components:
 | Python library | `python/` | `ofod`, pure Python (NumPy/SciPy) |
 | Bindings | `bindings/` | `ofod_cpp`, nanobind wrapper around `libofod` |
 
-The full plan is in [docs/plan.md](docs/plan.md).
+The full plan is in [docs/plan.md](docs/plan.md). Every chapter (1-37) has
+an example under `chapters/` in both languages, and the docs site turns
+them into one page per chapter plus a Python API reference:
+
+```sh
+pip install -r docs/requirements.txt
+mkdocs serve   # or `mkdocs build` to write site/
+```
 
 ## Quick start (Windows + Docker Desktop)
 
