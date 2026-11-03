@@ -1,0 +1,50 @@
+{
+  "chapter": 31,
+  "cases": [
+    {
+      "id": "vasicek_bond",
+      "ref": "Ch 31.3 Vasicek a = 0.1, b = 0.1, sigma = 0.02, r = 5%, 10-year bond (computed)",
+      "kind": "vasicek_bond",
+      "inputs": {
+        "a": 0.1,
+        "b": 0.1,
+        "sigma": 0.02,
+        "r": 0.05,
+        "tau": 10.0
+      },
+      "expected": 0.5218779804033459,
+      "tol": 1e-10
+    },
+    {
+      "id": "cir_bond",
+      "ref": "Ch 31.3 CIR a = 0.2, b = 0.05, sigma = 0.1, r = 4%, 5-year bond (computed)",
+      "kind": "cir_bond",
+      "inputs": {
+        "a": 0.2,
+        "b": 0.05,
+        "sigma": 0.1,
+        "r": 0.04,
+        "tau": 5.0
+      },
+      "expected": 0.8072854153292554,
+      "tol": 1e-10
+    },
+    {
+      "id": "vasicek_bond_option",
+      "ref": "Ch 31.3 Vasicek 1-year call on a 5-year zero, K = 0.7 (computed)",
+      "kind": "vasicek_bond_option",
+      "inputs": {
+        "type": "call",
+        "a": 0.1,
+        "b": 0.1,
+        "sigma": 0.02,
+        "r": 0.1,
+        "expiry": 1.0,
+        "maturity": 5.0,
+        "strike": 0.7
+      },
+      "expected": 0.006597399178565583,
+      "tol": 1e-10
+    }
+  ]
+}

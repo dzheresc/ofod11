@@ -1,0 +1,196 @@
+{
+  "chapter": 29,
+  "cases": [
+    {
+      "id": "bond_option_example",
+      "ref": "Example 29.1: 10-month call on a 9.75-year bond, B0 = 960, K = 1000, coupons of 50 at 3 and 9 months (9%, 9.5%), r = 10%, sigma = 9% gives 9.49",
+      "kind": "black_bond_option",
+      "inputs": {
+        "type": "call",
+        "spot_price": 960.0,
+        "coupon_pv": 95.44901464768276,
+        "discount": 0.9200444146293233,
+        "strike": 1000.0,
+        "vol": 0.09,
+        "t": 0.8333333333333334
+      },
+      "expected": 9.49,
+      "tol": 0.005
+    },
+    {
+      "id": "caplet_example_inputs",
+      "ref": "Ch 29.2 caplet with the inputs of Example 29.2: L = 10,000, R_K = 8%, F = 7%, sigma = 20%, reset 1 year, accrual 0.25, zero rate 6.5% (computed)",
+      "kind": "black_caplet",
+      "inputs": {
+        "type": "call",
+        "forward": 0.07,
+        "strike": 0.08,
+        "vol": 0.2,
+        "reset": 1.0,
+        "accrual": 0.25,
+        "discount": 0.9219631718378983,
+        "notional": 10000.0
+      },
+      "expected": 5.19004591744049,
+      "tol": 1e-10
+    },
+    {
+      "id": "swaption_example",
+      "ref": "Example 29.3: pay 6.2% in a 3-year semiannual swap starting in 5 years, flat 6% curve, 20% vol, $100 million gives $2.07 million",
+      "kind": "black_swaption",
+      "inputs": {
+        "type": "call",
+        "curve": {
+          "times": [
+            1.0
+          ],
+          "rates": [
+            0.06
+          ]
+        },
+        "start": 5.0,
+        "tenor": 3.0,
+        "frequency": 2,
+        "strike": 0.062,
+        "vol": 0.2,
+        "notional": 100.0
+      },
+      "expected": 2.07,
+      "tol": 0.005
+    },
+    {
+      "id": "cap_5y_quarterly",
+      "ref": "Ch 29.2 5-year quarterly cap at 4% on an upward curve, flat vol 20% (computed)",
+      "kind": "cap_floor",
+      "inputs": {
+        "type": "call",
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "strike": 0.04,
+        "maturity": 5.0,
+        "frequency": 4,
+        "vol": 0.2
+      },
+      "expected": 0.037296442196059695,
+      "tol": 1e-10
+    },
+    {
+      "id": "floor_5y_quarterly",
+      "ref": "Ch 29.2 matching floor (computed)",
+      "kind": "cap_floor",
+      "inputs": {
+        "type": "put",
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "strike": 0.04,
+        "maturity": 5.0,
+        "frequency": 4,
+        "vol": 0.2
+      },
+      "expected": 0.012874106313851316,
+      "tol": 1e-10
+    },
+    {
+      "id": "strip_caplet_vols",
+      "ref": "Ch 29.2 spot vols stripped from humped semiannual flat vols (computed)",
+      "kind": "strip_caplet_vols",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "strike": 0.04,
+        "frequency": 2,
+        "flat_vols": [
+          0.18,
+          0.2,
+          0.21,
+          0.21,
+          0.2,
+          0.19
+        ]
+      },
+      "expected": [
+        0.1799999999999941,
+        0.2141612641871801,
+        0.22619799154941836,
+        0.20999999999999996,
+        0.17132402568297753,
+        0.15220931166894083
+      ],
+      "tol": 1e-09
+    },
+    {
+      "id": "bachelier_swaption",
+      "ref": "Ch 29.4 receiver swaption under the normal model, 80 bp normal vol (computed)",
+      "kind": "bachelier_swaption",
+      "inputs": {
+        "type": "put",
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "start": 2.0,
+        "tenor": 5.0,
+        "frequency": 2,
+        "strike": 0.045,
+        "vol": 0.008,
+        "notional": 1.0
+      },
+      "expected": 0.009618531556017251,
+      "tol": 1e-10
+    }
+  ]
+}

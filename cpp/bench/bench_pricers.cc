@@ -1,6 +1,7 @@
 // Copyright 2026 Denis Zhereshchin
 //
-// Google Benchmark suite for the Ch 21 engines and the Ch 26-27 models. Run
+// Google Benchmark suite for the Ch 21 engines, the Ch 26-27 models and the
+// Ch 32-33 interest rate models. Run
 // from the profile preset:
 //   ./build/profile/cpp/bench/ofod_bench --benchmark_out=bench.json
 //       --benchmark_out_format=json
@@ -8,8 +9,12 @@
 #include <benchmark/benchmark.h>
 
 #include <algorithm>
+#include <cmath>
 #include <span>
+#include <vector>
 
+#include "ofod/curves/zero_curve.h"
+#include "ofod/models/lmm.h"
 #include "ofod/pricers/american_mc.h"
 #include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/black_scholes.h"
@@ -17,6 +22,7 @@
 #include "ofod/pricers/finite_difference.h"
 #include "ofod/pricers/model_pricers.h"
 #include "ofod/pricers/monte_carlo.h"
+#include "ofod/pricers/short_rate_tree.h"
 
 namespace ofod::pricers {
 namespace {
@@ -165,6 +171,67 @@ void BmExoticClosedForms(benchmark::State& state) {
   }
 }
 BENCHMARK(BmExoticClosedForms)->Unit(benchmark::kMicrosecond);
+
+// LMM: 20 semiannual forwards, 1 to 3 factors with stationary loadings.
+models::LmmSpec LmmBenchSpec(int factors) {
+  models::LmmSpec spec{.accrual = 0.5, .forwards = {}, .loadings = {}};
+  for (int k = 0; k < 20; ++k) spec.forwards.push_back(0.04 + 0.001 * k);
+  for (int i = 0; i < 19; ++i) {
+    const double lambda = 0.15 + 0.05 * std::exp(-0.3 * i);
+    std::vector<double> row;
+    row.reserve(static_cast<std::size_t>(factors));
+    for (int q = 0; q < factors; ++q) {
+      row.push_back(lambda * std::cos(0.2 * i + q) / std::sqrt(factors));
+    }
+    spec.loadings.push_back(row);
+  }
+  return spec;
+}
+
+void BmLmmMonteCarlo(benchmark::State& state) {
+  const models::LmmSpec spec = LmmBenchSpec(static_cast<int>(state.range(0)));
+  const models::LmmPayoff cap = [](const models::LmmPath& path) {
+    double value = 0.0;
+    for (int k = 1; k < path.size(); ++k) {
+      value += std::max(path.Reset(k) - 0.05, 0.0) / path.Numeraire(k + 1);
+    }
+    return value;
+  };
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(
+        models::LmmMonteCarlo(spec, cap,
+                              {.paths = 10'000,
+                               .seed = 1,
+                               .predictor_corrector = state.range(1) != 0}));
+  }
+}
+BENCHMARK(BmLmmMonteCarlo)
+    ->Args({1, 0})
+    ->Args({1, 1})
+    ->Args({3, 0})
+    ->Args({3, 1})
+    ->Unit(benchmark::kMillisecond);
+
+void BmHullWhiteBermudan(benchmark::State& state) {
+  const auto curve = curves::ZeroCurve::Flat(0.04);
+  const int steps = static_cast<int>(state.range(0));
+  std::vector<int> exercise;
+  for (int e = steps / 10; e < steps; e += steps / 10) exercise.push_back(e);
+  for (auto _ : state) {
+    const auto tree =
+        ShortRateTree::Build(curve, 0.1, 0.01, 10.0 / steps, steps);
+    if (!tree) {
+      state.SkipWithError("tree construction failed");
+      break;
+    }
+    benchmark::DoNotOptimize(TreeSwaption(*tree, OptionType::kPut, 0.04,
+                                          steps / 10, steps, exercise));
+  }
+}
+BENCHMARK(BmHullWhiteBermudan)
+    ->Arg(500)
+    ->Arg(2000)
+    ->Unit(benchmark::kMillisecond);
 
 }  // namespace
 }  // namespace ofod::pricers

@@ -141,3 +141,61 @@ baseline's 106 ms. An A/B run of the same benchmark built from the M8
 merge commit (`9452e80`) gives the same 123-125 ms on this container, so
 the difference is the cloud host, not the code. The two- and four-thread
 runs are unchanged (69 ms and 35 ms).
+
+## M10 pass (Ch 32-33 rate models)
+
+New benchmarks: `BmLmmMonteCarlo/{factors}/{predictor_corrector}` (20
+semiannual forwards, 10,000 paths, a cap payoff) and
+`BmHullWhiteBermudan/{500,2000}` (tree build plus a 10-date Bermudan
+swaption over 10 years). Results: [`perf/m10.json`](perf/m10.json).
+`perf` is not available in the cloud container, so the passes used
+Callgrind, Cachegrind and GCC's `-fopt-info-vec` reports.
+
+### Findings
+
+1. **Hull-White tree: exp() in every rollback.** Callgrind on the
+   2,000-step Bermudan put 47% of instructions in glibc's `exp`, called
+   once per node per rollback (and again in the tree build) for the
+   one-step discount factor e^{-(alpha_i + j dx) dt}. For Hull-White it
+   factors into e^{-alpha_i dt} e^{-j dx dt}, so the tree now stores one
+   factor per step and one per node and a rollback is multiply-adds only.
+   Black-Karasinski rates are e^{alpha_i + j dx}, which do not factor, so
+   it keeps the exp. Prices change by rounding only (golden cases pass at
+   1e-10).
+
+   | Benchmark | Before | After | Speed-up |
+   | --- | --- | --- | --- |
+   | Bermudan, 500 steps | 1.84 ms | 1.10-1.19 ms | 1.6x |
+   | Bermudan, 2,000 steps | 42.1 ms | 16.6-19.8 ms | 2.1-2.5x |
+
+2. **LMM: compute-bound, cache-resident, not vectorisable as written.**
+   Callgrind on 3 factors with predictor-corrector: 38% in the drift
+   accumulation, 24% in `exp` (two per forward per step with the
+   corrector), 16% in the path loop and 4% in the Mersenne Twister.
+   Cachegrind reports D1 and LL miss rates of 0.0%: one path is
+   n(n + 1) / 2 doubles, so the working set never leaves L1. GCC's
+   vectorisation report explains why there is no SIMD: the factor loops
+   are 1-3 iterations, and the loop over forwards carries the running
+   drift sum Sigma_i tau F_i lambda_i / (1 + tau F_i) from one forward to
+   the next. Flattening the loadings into one row-major block and
+   precomputing |Lambda_i|^2 / 2 left the timings within noise (about 25,
+   45, 42 and 55-64 ms for 1/3 factors without/with the corrector), so
+   the remaining cost is the arithmetic itself, about 13 ns per forward
+   per step for one factor. The dimension that would vectorise is the
+   path: simulating a block of paths in structure-of-arrays form (as the
+   NumPy version does) makes every inner loop run across paths. That is
+   the next step if the LMM becomes a bottleneck; it changes the payoff
+   interface, so it is left for later.
+
+3. **Predictor-corrector costs 1.3-1.8x.** It doubles the drift and exp
+   work but removes most of the log-Euler drift bias; the caplet and
+   bond-price tests use it.
+
+### Regression check
+
+M10 does not touch the Heston or Longstaff-Schwartz code. Both were
+re-run alongside the new benchmarks: Heston moves by -13% to +19% against
+the M9 figures, in both directions, and Longstaff-Schwartz with 100,000
+paths reads 233 ms against 193 ms in M9. With unchanged code, that spread
+matches the host noise already seen in the M9 A/B run. The JSON keeps
+these runs for the next comparison.

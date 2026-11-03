@@ -20,6 +20,7 @@ nanobind_add_module(_core NB_STATIC
   src/bind_credit.cc
   src/bind_curves.cc
   src/bind_exotics.cc
+  src/bind_rates.cc
   src/bind_futures.cc
   src/bind_greeks.cc
   src/bind_instruments.cc

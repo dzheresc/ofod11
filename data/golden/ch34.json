@@ -1,0 +1,210 @@
+{
+  "chapter": 34,
+  "cases": [
+    {
+      "id": "amortizing_swap",
+      "ref": "Ch 34.1 amortizing swap, notional 100 falling by 10 a half-year, 4.5% fixed (computed)",
+      "kind": "schedule_swap",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "schedule": {
+          "start": 0.0,
+          "maturity": 5.0,
+          "frequency": 2,
+          "notional": 100.0,
+          "fixed_rate": 0.045,
+          "amortization": 10.0
+        }
+      },
+      "expected": 0.6757970973876724,
+      "tol": 1e-10
+    },
+    {
+      "id": "step_up_swap",
+      "ref": "Ch 34.1 step-up swap, fixed rate 4% rising 10 bp a period (computed)",
+      "kind": "schedule_swap",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "schedule": {
+          "start": 0.0,
+          "maturity": 5.0,
+          "frequency": 2,
+          "notional": 100.0,
+          "fixed_rate": 0.04,
+          "step_up": 0.001
+        }
+      },
+      "expected": -0.37645551741545824,
+      "tol": 1e-10
+    },
+    {
+      "id": "in_arrears_rate",
+      "ref": "Ch 34.2 LIBOR-in-arrears rate, F = 5%, sigma = 25%, t = 3, tau = 0.5 (computed)",
+      "kind": "in_arrears_rate",
+      "inputs": {
+        "forward_rate": 0.05,
+        "vol": 0.25,
+        "t": 3.0,
+        "tau": 0.5
+      },
+      "expected": 0.05022865853658537,
+      "tol": 1e-10
+    },
+    {
+      "id": "in_arrears_swap",
+      "ref": "Ch 34.2 LIBOR-in-arrears swap, 20% caplet vols (computed)",
+      "kind": "in_arrears_swap",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "schedule": {
+          "start": 0.0,
+          "maturity": 5.0,
+          "frequency": 2,
+          "notional": 100.0,
+          "fixed_rate": 0.045
+        },
+        "vol": 0.2
+      },
+      "expected": -1.0334342667989478,
+      "tol": 1e-10
+    },
+    {
+      "id": "cms_swap",
+      "ref": "Ch 34.4 CMS swap paying the 5-year swap rate semiannually, 20% swap vol, 18% forward vol, rho = 0.7 (computed)",
+      "kind": "cms_swap",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "schedule": {
+          "start": 0.0,
+          "maturity": 5.0,
+          "frequency": 2,
+          "notional": 100.0,
+          "fixed_rate": 0.045
+        },
+        "cms_tenor": 5.0,
+        "cms_frequency": 2,
+        "forward_vol": 0.18,
+        "correlation": 0.7,
+        "vol": 0.2
+      },
+      "expected": -2.679679686563182,
+      "tol": 1e-10
+    },
+    {
+      "id": "cms_rate",
+      "ref": "Ch 34.4 adjusted CMS rate: 5% forward 10-year swap rate, 15% vol, reset in 5 years, paid 0.5 later (computed)",
+      "kind": "cms_rate",
+      "inputs": {
+        "terms": {
+          "forward_swap_rate": 0.05,
+          "swap_volatility": 0.15,
+          "t": 5.0,
+          "swap_tenor": 10.0,
+          "frequency": 2,
+          "delay": 0.5,
+          "delay_rate": 0.045,
+          "delay_volatility": 0.2,
+          "correlation": 0.8
+        }
+      },
+      "expected": 0.051193005710507035,
+      "tol": 1e-10
+    },
+    {
+      "id": "accrual_swap",
+      "ref": "Ch 34.6 accrual swap fixed leg, accrues while the 6-month rate is in [3.5%, 5.5%], 20 observations a period (computed)",
+      "kind": "accrual_fixed_leg",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.25,
+            1.0,
+            2.0,
+            5.0,
+            10.0
+          ],
+          "rates": [
+            0.03,
+            0.035,
+            0.04,
+            0.045,
+            0.05
+          ]
+        },
+        "schedule": {
+          "start": 0.0,
+          "maturity": 5.0,
+          "frequency": 2,
+          "notional": 100.0,
+          "fixed_rate": 0.045
+        },
+        "low": 0.035,
+        "high": 0.055,
+        "vol": 0.2,
+        "observations": 20
+      },
+      "expected": 10.634663119256956,
+      "tol": 1e-10
+    }
+  ]
+}
