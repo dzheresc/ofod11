@@ -11,3 +11,7 @@ __pycache__/
 *.so
 .vscode/*
 !.vscode/extensions.json
+docs/chapters/
+docs/api/
+site/
+.hypothesis/

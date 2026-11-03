@@ -19,8 +19,9 @@ std::size_t Index(int j, int width) {
   return static_cast<std::size_t>(i);
 }
 
-// Hull's branching probabilities with M = -a dt (Ch 32.6).
-Branch MakeBranch(int j, int jmax, double m) {
+}  // namespace
+
+Branch HullBranch(int j, int jmax, double m) {
   const double jm = j * m;
   const double jm2 = jm * jm;
   if (j == jmax && jmax > 0) {  // Branching (c): j, j - 1, j - 2.
@@ -41,8 +42,6 @@ Branch MakeBranch(int j, int jmax, double m) {
           .down = 1.0 / 6.0 + 0.5 * (jm2 - jm)};
 }
 
-}  // namespace
-
 std::optional<ShortRateTree> ShortRateTree::Build(
     const curves::ZeroCurve& curve, double a, double sigma, double dt,
     int steps, ShortRateModel model) {
@@ -60,7 +59,7 @@ std::optional<ShortRateTree> ShortRateTree::Build(
           : steps;
   const double m = -a * dt;
   for (int j = -tree.jmax_; j <= tree.jmax_; ++j) {
-    tree.branches_.push_back(MakeBranch(j, tree.jmax_, m));
+    tree.branches_.push_back(HullBranch(j, tree.jmax_, m));
     tree.node_discount_.push_back(std::exp(-j * tree.dx_ * dt));
   }
   tree.q_.push_back({1.0});

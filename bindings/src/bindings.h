@@ -29,6 +29,8 @@ void BindPricers(nanobind::module_& m);
 void BindExotics(nanobind::module_& m);
 // Chapters 29 to 34, registered into the pricers and models submodules.
 void BindRates(nanobind::module_& pricers, nanobind::module_& models);
+// Chapters 35 and 36, registered into the pricers and models submodules.
+void BindCommodities(nanobind::module_& pricers, nanobind::module_& models);
 void BindStats(nanobind::module_& m);
 void BindRisk(nanobind::module_& m);
 void BindFutures(nanobind::module_& m);

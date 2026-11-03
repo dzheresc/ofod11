@@ -32,6 +32,10 @@ struct Branch {
   double down;
 };
 
+// Hull's trinomial branching from node j with M = -a dt: normal branching
+// inside the tree, branching (b) at j = -jmax and (c) at j = jmax.
+[[nodiscard]] Branch HullBranch(int j, int jmax, double m);
+
 class ShortRateTree {
  public:
   // Builds `steps` steps of length `dt`. jmax is the smallest integer

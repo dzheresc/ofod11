@@ -40,6 +40,11 @@ add_executable(ch31_short_rate_models ch31_short_rate_models/cpp/short_rate.cc)
 add_executable(ch32_no_arbitrage_models ch32_no_arbitrage_models/cpp/trees.cc)
 add_executable(ch33_forward_rates ch33_forward_rates/cpp/forward_rates.cc)
 add_executable(ch34_swaps_revisited ch34_swaps_revisited/cpp/swaps.cc)
+add_executable(ch35_commodity_derivatives
+  ch35_commodity_derivatives/cpp/commodities.cc)
+add_executable(ch36_real_options ch36_real_options/cpp/real_options.cc)
+add_executable(ch37_derivatives_mishaps
+  ch37_derivatives_mishaps/cpp/mishaps.cc)
 
 foreach(target ch01_introduction ch02_futures_markets ch03_hedging
     ch04_interest_rates ch05_forward_futures_prices ch06_interest_rate_futures
@@ -52,7 +57,8 @@ foreach(target ch01_introduction ch02_futures_markets ch03_hedging
     ch24_credit_risk ch25_credit_derivatives ch26_exotic_options
     ch27_more_models ch28_martingales_measures ch29_market_models
     ch30_convexity_timing_quanto ch31_short_rate_models
-    ch32_no_arbitrage_models ch33_forward_rates ch34_swaps_revisited)
+    ch32_no_arbitrage_models ch33_forward_rates ch34_swaps_revisited
+    ch35_commodity_derivatives ch36_real_options ch37_derivatives_mishaps)
   target_link_libraries(${target} PRIVATE ofod::ofod)
 endforeach()
 

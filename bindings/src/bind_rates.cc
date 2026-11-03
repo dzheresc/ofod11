@@ -181,6 +181,8 @@ void BindShortRateTree(nb::module_& m) {
       .def_rw("up", &p::Branch::up)
       .def_rw("mid", &p::Branch::mid)
       .def_rw("down", &p::Branch::down);
+  m.def("hull_branch", &p::HullBranch, nb::arg("j"), nb::arg("jmax"),
+        nb::arg("m"));
   nb::class_<p::TreeCashFlow>(m, "TreeCashFlow")
       .def(nb::init<int, double>(), nb::arg("step"), nb::arg("amount"))
       .def_rw("step", &p::TreeCashFlow::step)

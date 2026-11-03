@@ -14,9 +14,13 @@ add_library(ofod
   src/pricers/rate_options.cc
   src/pricers/adjustments.cc
   src/pricers/short_rate_tree.cc
+  src/pricers/commodity_tree.cc
+  src/pricers/weather_insurance.cc
+  src/pricers/real_options.cc
   src/pricers/mbs.cc
   src/pricers/exotic_swaps.cc
   src/models/short_rate.cc
+  src/models/commodity.cc
   src/models/lmm.cc
   src/futures/margin.cc
   src/futures/rate_futures.cc
