@@ -33,17 +33,24 @@
 #include "ofod/math/linalg.h"
 #include "ofod/math/normal.h"
 #include "ofod/models/brownian.h"
+#include "ofod/models/lmm.h"
+#include "ofod/models/short_rate.h"
+#include "ofod/pricers/adjustments.h"
 #include "ofod/pricers/american_mc.h"
 #include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/black_scholes.h"
 #include "ofod/pricers/bond_pricer.h"
 #include "ofod/pricers/bounds.h"
 #include "ofod/pricers/eso.h"
+#include "ofod/pricers/exotic_swaps.h"
 #include "ofod/pricers/exotics.h"
 #include "ofod/pricers/finite_difference.h"
 #include "ofod/pricers/forward_pricer.h"
+#include "ofod/pricers/mbs.h"
 #include "ofod/pricers/model_pricers.h"
 #include "ofod/pricers/monte_carlo.h"
+#include "ofod/pricers/rate_options.h"
+#include "ofod/pricers/short_rate_tree.h"
 #include "ofod/pricers/smile.h"
 #include "ofod/pricers/swap_pricer.h"
 #include "ofod/random/normal_generator.h"
@@ -777,6 +784,197 @@ std::optional<double> EvaluateM9(const std::string& kind, const json& in) {
   return std::nullopt;
 }
 
+std::vector<pricers::SwapPeriod> ParsePeriods(const json& in) {
+  const json& s = in["schedule"];
+  return pricers::SwapSchedule(
+      s["start"], s["maturity"], s["frequency"], s["notional"], s["fixed_rate"],
+      s.value("amortization", 0.0), s.value("step_up", 0.0));
+}
+
+std::optional<pricers::ShortRateTree> ParseTree(const json& in) {
+  const auto model =
+      in.value("model", std::string("hull_white")) == "black_karasinski"
+          ? pricers::ShortRateModel::kBlackKarasinski
+          : pricers::ShortRateModel::kHullWhite;
+  return pricers::ShortRateTree::Build(ParseCurve(in["curve"]), in["a"],
+                                       in["sigma"], in["dt"], in["steps"],
+                                       model);
+}
+
+std::optional<double> EvaluateM10(const std::string& kind, const json& in) {
+  namespace p = pricers;
+  namespace md = models;
+  const auto type =
+      in.contains("type") ? ParseType(in["type"]) : p::OptionType::kCall;
+  if (kind == "black_bond_option") {
+    const double f =
+        p::ForwardBondPrice(in["spot_price"], in["coupon_pv"], in["discount"]);
+    return p::BlackBondOptionPrice(type, f, in["strike"], in["discount"],
+                                   in["vol"], in["t"]);
+  }
+  if (kind == "black_caplet") {
+    return p::BlackCapletPrice(type, in["forward"], in["strike"], in["vol"],
+                               in["reset"], in["accrual"], in["discount"],
+                               in["notional"]);
+  }
+  if (kind == "cap_floor") {
+    return Value(p::CapFloorPrice(type, ParseCurve(in["curve"]),
+                                  {.strike = in["strike"],
+                                   .maturity = in["maturity"],
+                                   .frequency = in["frequency"]},
+                                  in["vol"]));
+  }
+  if (kind == "black_swaption" || kind == "bachelier_swaption") {
+    const auto swap = p::ForwardSwapRate(ParseCurve(in["curve"]), in["start"],
+                                         in["tenor"], in["frequency"]);
+    const auto price = kind == "black_swaption" ? p::BlackSwaptionPrice
+                                                : p::BachelierSwaptionPrice;
+    return price(type, swap.rate, in["strike"], in["vol"], in["start"],
+                 swap.annuity, in["notional"]);
+  }
+  if (kind == "yield_convexity_adjustment") {
+    return p::BondYieldConvexityAdjustment(in["forward_yield"], in["vol"],
+                                           in["t"], in["coupon_rate"],
+                                           in["maturity"], in["frequency"]);
+  }
+  if (kind == "timing_factor") {
+    return p::TimingAdjustmentFactor(in["forward_rate"], in["forward_vol"],
+                                     in["variable_vol"], in["correlation"],
+                                     in["t"], in["tau"]);
+  }
+  if (kind == "quanto_factor") {
+    return p::QuantoAdjustmentFactor(in["correlation"], in["exchange_vol"],
+                                     in["variable_vol"], in["t"]);
+  }
+  if (kind == "in_arrears_rate") {
+    return p::InArrearsRate(in["forward_rate"], in["vol"], in["t"], in["tau"]);
+  }
+  if (kind == "cms_rate") {
+    const json& t = in["terms"];
+    return p::CmsRate({.forward_swap_rate = t["forward_swap_rate"],
+                       .swap_volatility = t["swap_volatility"],
+                       .t = t["t"],
+                       .swap_tenor = t["swap_tenor"],
+                       .frequency = t["frequency"],
+                       .delay = t["delay"],
+                       .delay_rate = t["delay_rate"],
+                       .delay_volatility = t["delay_volatility"],
+                       .correlation = t["correlation"]});
+  }
+  if (kind == "vasicek_bond") {
+    return md::BondPrice(md::Vasicek{in["a"], in["b"], in["sigma"]}, in["r"],
+                         in["tau"]);
+  }
+  if (kind == "cir_bond") {
+    return md::BondPrice(md::Cir{in["a"], in["b"], in["sigma"]}, in["r"],
+                         in["tau"]);
+  }
+  if (kind == "vasicek_bond_option") {
+    return md::ZeroBondOptionPrice(md::Vasicek{in["a"], in["b"], in["sigma"]},
+                                   type, in["r"], in["expiry"], in["maturity"],
+                                   in["strike"]);
+  }
+  if (kind.starts_with("hw_")) {
+    const auto hw =
+        md::HullWhite::Create(ParseCurve(in["curve"]), in["a"], in["sigma"]);
+    REQUIRE(hw.has_value());
+    if (kind == "hw_zero_bond_option") {
+      return hw->ZeroBondOption(type, in["expiry"], in["maturity"],
+                                in["strike"]);
+    }
+    if (kind == "hw_coupon_bond_option") {
+      return Value(hw->CouponBondOption(
+          type, in["expiry"], in["times"].get<std::vector<double>>(),
+          in["amounts"].get<std::vector<double>>(), in["strike"]));
+    }
+    if (kind == "hw_caplet") {
+      return hw->Caplet(type, in["reset"], in["accrual"], in["strike"],
+                        in["notional"]);
+    }
+    return std::nullopt;
+  }
+  if (kind == "tree_swaption" || kind == "tree_bond_option") {
+    const auto tree = ParseTree(in);
+    REQUIRE(tree.has_value());
+    if (kind == "tree_swaption") {
+      return Value(p::TreeSwaption(
+          *tree, type, in["strike"], in["period_steps"], in["end_step"],
+          in["exercise_steps"].get<std::vector<int>>()));
+    }
+    std::vector<p::TreeCashFlow> bond;
+    for (const auto& c : in["bond"]) bond.push_back({c[0], c[1]});
+    const auto exercise = in["exercise"] == "american"
+                              ? instruments::Exercise::kAmerican
+                              : instruments::Exercise::kEuropean;
+    return Value(p::TreeBondOption(*tree, type, exercise, in["expiry_step"],
+                                   bond, in["strike"]));
+  }
+  if (kind == "rebonato_vol") {
+    const md::LmmSpec spec{
+        .accrual = in["accrual"],
+        .forwards = in["forwards"].get<std::vector<double>>(),
+        .loadings = in["loadings"].get<md::Matrix>()};
+    return Value(md::RebonatoSwaptionVolatility(spec, in["start"], in["end"]));
+  }
+  if (kind == "schedule_swap") {
+    return p::ScheduleSwapValue(ParseCurve(in["curve"]), ParsePeriods(in));
+  }
+  if (kind == "in_arrears_swap" || kind == "cms_swap") {
+    const auto periods = ParsePeriods(in);
+    const std::vector<double> vols(periods.size(), in["vol"].get<double>());
+    if (kind == "in_arrears_swap") {
+      return p::InArrearsSwapValue(ParseCurve(in["curve"]), periods, vols);
+    }
+    return p::CmsSwapValue(ParseCurve(in["curve"]), periods,
+                           {.cms_tenor = in["cms_tenor"],
+                            .cms_frequency = in["cms_frequency"],
+                            .forward_vol = in["forward_vol"],
+                            .correlation = in["correlation"]},
+                           vols);
+  }
+  if (kind == "accrual_fixed_leg") {
+    return p::AccrualFixedLegValue(ParseCurve(in["curve"]), ParsePeriods(in),
+                                   in["low"], in["high"], in["vol"],
+                                   in["observations"]);
+  }
+  return std::nullopt;
+}
+
+std::optional<std::vector<double>> EvaluateM10Vector(const std::string& kind,
+                                                     const json& in) {
+  if (kind == "strip_caplet_vols") {
+    auto v = pricers::StripCapletVolatilities(
+        ParseCurve(in["curve"]), in["strike"], in["frequency"],
+        in["flat_vols"].get<std::vector<double>>());
+    REQUIRE(v.has_value());
+    return v;
+  }
+  if (kind == "tree_alphas") {
+    const auto tree = ParseTree(in);
+    REQUIRE(tree.has_value());
+    return std::vector<double>(tree->alphas().begin(), tree->alphas().end());
+  }
+  if (kind == "lmm_lambdas") {
+    auto v = models::LmmVolatilitiesFromCaplets(
+        in["caplet_vols"].get<std::vector<double>>());
+    REQUIRE(v.has_value());
+    return v;
+  }
+  if (kind == "mbs_psa") {
+    const pricers::MortgagePool pool{
+        .balance = in["balance"],
+        .mortgage_rate = in["mortgage_rate"],
+        .pass_through_rate = in["pass_through_rate"],
+        .months = in["months"]};
+    const auto v =
+        pricers::ValueCashFlows(pricers::PassThroughCashFlows(pool, in["psa"]),
+                                ParseCurve(in["curve"]));
+    return std::vector<double>{v.pass_through, v.interest_only,
+                               v.principal_only};
+  }
+  return std::nullopt;
+}
+
 // Returns the value the library computes for one scalar case.
 double EvaluateScalar(const std::string& kind, const json& in) {
   if (kind == "growth_factor") {
@@ -1079,6 +1277,7 @@ double EvaluateScalar(const std::string& kind, const json& in) {
   if (const auto v = EvaluateM7(kind, in)) return *v;
   if (const auto v = EvaluateM8(kind, in)) return *v;
   if (const auto v = EvaluateM9(kind, in)) return *v;
+  if (const auto v = EvaluateM10(kind, in)) return *v;
   FAIL("unknown golden case kind: " << kind);
   return 0.0;
 }
@@ -1168,6 +1367,7 @@ std::vector<double> EvaluateVector(const std::string& kind, const json& in) {
   if (auto v = EvaluateM6Vector(kind, in)) return *std::move(v);
   if (auto v = EvaluateM7Vector(kind, in)) return *std::move(v);
   if (auto v = EvaluateM8Vector(kind, in)) return *std::move(v);
+  if (auto v = EvaluateM10Vector(kind, in)) return *std::move(v);
   FAIL("unknown golden case kind: " << kind);
   return {};
 }
@@ -1286,6 +1486,33 @@ TEST_CASE("Golden: Chapter 26 exotic options", "[golden][ch26]") {
 
 TEST_CASE("Golden: Chapter 27 more on models", "[golden][ch27]") {
   RunChapter(27);
+}
+
+TEST_CASE("Golden: Chapter 29 standard market models", "[golden][ch29]") {
+  RunChapter(29);
+}
+
+TEST_CASE("Golden: Chapter 30 convexity, timing and quanto adjustments",
+          "[golden][ch30]") {
+  RunChapter(30);
+}
+
+TEST_CASE("Golden: Chapter 31 equilibrium short-rate models",
+          "[golden][ch31]") {
+  RunChapter(31);
+}
+
+TEST_CASE("Golden: Chapter 32 no-arbitrage short-rate models",
+          "[golden][ch32]") {
+  RunChapter(32);
+}
+
+TEST_CASE("Golden: Chapter 33 modeling forward rates", "[golden][ch33]") {
+  RunChapter(33);
+}
+
+TEST_CASE("Golden: Chapter 34 swaps revisited", "[golden][ch34]") {
+  RunChapter(34);
 }
 
 }  // namespace

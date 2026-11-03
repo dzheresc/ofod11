@@ -1,0 +1,266 @@
+{
+  "chapter": 32,
+  "cases": [
+    {
+      "id": "hw_tree_alphas",
+      "ref": "Ch 32.7 Hull-White tree, a = 0.1, sigma = 0.01, dt = 1: alpha = 3.824%, 5.205%, 6.252%",
+      "kind": "tree_alphas",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0
+          ],
+          "rates": [
+            0.0343,
+            0.03824,
+            0.04183,
+            0.04512,
+            0.04812,
+            0.05086
+          ]
+        },
+        "a": 0.1,
+        "sigma": 0.01,
+        "dt": 1.0,
+        "steps": 3
+      },
+      "expected": [
+        0.03824,
+        0.05205,
+        0.06252
+      ],
+      "tol": 1e-05
+    },
+    {
+      "id": "hw_zero_bond_put",
+      "ref": "Ch 32.3 Hull-White 1-year put on a 3-year zero, K = 0.92 (computed)",
+      "kind": "hw_zero_bond_option",
+      "inputs": {
+        "type": "put",
+        "curve": {
+          "times": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0
+          ],
+          "rates": [
+            0.0343,
+            0.03824,
+            0.04183,
+            0.04512,
+            0.04812,
+            0.05086
+          ]
+        },
+        "a": 0.1,
+        "sigma": 0.01,
+        "expiry": 1.0,
+        "maturity": 3.0,
+        "strike": 0.92
+      },
+      "expected": 0.027211240009576976,
+      "tol": 1e-10
+    },
+    {
+      "id": "hw_coupon_bond_call",
+      "ref": "Ch 32.3 Jamshidian call on a 3-year 5% annual coupon bond, K = 99 (computed)",
+      "kind": "hw_coupon_bond_option",
+      "inputs": {
+        "type": "call",
+        "curve": {
+          "times": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0
+          ],
+          "rates": [
+            0.0343,
+            0.03824,
+            0.04183,
+            0.04512,
+            0.04812,
+            0.05086
+          ]
+        },
+        "a": 0.1,
+        "sigma": 0.01,
+        "expiry": 1.0,
+        "times": [
+          2.0,
+          3.0
+        ],
+        "amounts": [
+          5.0,
+          105.0
+        ],
+        "strike": 99.0
+      },
+      "expected": 0.392041579615367,
+      "tol": 1e-09
+    },
+    {
+      "id": "hw_caplet",
+      "ref": "Ch 32.3 Hull-White caplet, reset 2 years, accrual 0.5, K = 5% (computed)",
+      "kind": "hw_caplet",
+      "inputs": {
+        "type": "call",
+        "curve": {
+          "times": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0
+          ],
+          "rates": [
+            0.0343,
+            0.03824,
+            0.04183,
+            0.04512,
+            0.04812,
+            0.05086
+          ]
+        },
+        "a": 0.1,
+        "sigma": 0.01,
+        "reset": 2.0,
+        "accrual": 0.5,
+        "strike": 0.05,
+        "notional": 1.0
+      },
+      "expected": 0.005510544921164661,
+      "tol": 1e-10
+    },
+    {
+      "id": "tree_bermudan_receiver",
+      "ref": "Ch 32.8 Bermudan receiver swaption on the tree: annual 5% swap ending in 3 years, exercisable at 1 and 2 years, dt = 0.02 (computed)",
+      "kind": "tree_swaption",
+      "inputs": {
+        "type": "put",
+        "curve": {
+          "times": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0
+          ],
+          "rates": [
+            0.0343,
+            0.03824,
+            0.04183,
+            0.04512,
+            0.04812,
+            0.05086
+          ]
+        },
+        "a": 0.1,
+        "sigma": 0.01,
+        "dt": 0.02,
+        "steps": 150,
+        "strike": 0.05,
+        "period_steps": 50,
+        "end_step": 150,
+        "exercise_steps": [
+          50,
+          100
+        ]
+      },
+      "expected": 0.0017162098246382633,
+      "tol": 1e-10
+    },
+    {
+      "id": "tree_american_bond_put",
+      "ref": "Ch 32.8 American put on a 3-year zero (face 100) exercisable for 2 years, K = 90 (computed)",
+      "kind": "tree_bond_option",
+      "inputs": {
+        "type": "put",
+        "curve": {
+          "times": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0
+          ],
+          "rates": [
+            0.0343,
+            0.03824,
+            0.04183,
+            0.04512,
+            0.04812,
+            0.05086
+          ]
+        },
+        "a": 0.1,
+        "sigma": 0.01,
+        "dt": 0.02,
+        "steps": 150,
+        "exercise": "american",
+        "expiry_step": 100,
+        "bond": [
+          [
+            150,
+            100.0
+          ]
+        ],
+        "strike": 90.0
+      },
+      "expected": 4.150978800780649,
+      "tol": 1e-10
+    },
+    {
+      "id": "bk_tree_alphas",
+      "ref": "Ch 32.7 Black-Karasinski tree, a = 0.22, sigma = 0.25, dt = 0.5 (computed)",
+      "kind": "tree_alphas",
+      "inputs": {
+        "curve": {
+          "times": [
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            2.5,
+            3.0
+          ],
+          "rates": [
+            0.0343,
+            0.03824,
+            0.04183,
+            0.04512,
+            0.04812,
+            0.05086
+          ]
+        },
+        "a": 0.22,
+        "sigma": 0.25,
+        "dt": 0.5,
+        "steps": 6,
+        "model": "black_karasinski"
+      },
+      "expected": [
+        -3.3726099248101775,
+        -3.181099331517166,
+        -3.0424320280953014,
+        -2.9355196343147427,
+        -2.8519922482864715,
+        -2.7844081908582723
+      ],
+      "tol": 1e-09
+    }
+  ]
+}

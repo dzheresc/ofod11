@@ -27,6 +27,9 @@ add_executable(ofod_tests
   pricers/numerical_test.cc
   pricers/exotics_test.cc
   pricers/models_test.cc
+  pricers/rate_options_test.cc
+  models/short_rate_test.cc
+  models/lmm_test.cc
   pricers/smile_test.cc
   greeks/greeks_test.cc
   strategies/strategies_test.cc

@@ -908,6 +908,185 @@ def _evaluate_m9(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
     return None
 
 
+def _periods(lib: types.ModuleType, i: dict[str, Any]) -> Any:
+    s = i["schedule"]
+    return lib.pricers.swap_schedule(
+        s["start"],
+        s["maturity"],
+        s["frequency"],
+        s["notional"],
+        s["fixed_rate"],
+        s.get("amortization", 0.0),
+        s.get("step_up", 0.0),
+    )
+
+
+def _evaluate_m10(lib: types.ModuleType, kind: str, i: dict[str, Any]) -> Any:
+    """Chapters 29 to 34; returns None for other kinds."""
+    p = lib.pricers
+    md = lib.models
+    otype = _otype(lib, i["type"]) if "type" in i else None
+    curve = _curve(lib, i["curve"]) if "curve" in i else None
+    if kind == "black_bond_option":
+        f = p.forward_bond_price(i["spot_price"], i["coupon_pv"], i["discount"])
+        return p.black_bond_option_price(
+            otype, f, i["strike"], i["discount"], i["vol"], i["t"]
+        )
+    if kind == "black_caplet":
+        return p.black_caplet_price(
+            otype,
+            i["forward"],
+            i["strike"],
+            i["vol"],
+            i["reset"],
+            i["accrual"],
+            i["discount"],
+            i["notional"],
+        )
+    if kind == "cap_floor":
+        terms = p.CapTerms(i["strike"], i["maturity"], i["frequency"], 1.0)
+        return p.cap_floor_price(otype, curve, terms, i["vol"])
+    if kind == "strip_caplet_vols":
+        return p.strip_caplet_volatilities(
+            curve, i["strike"], i["frequency"], i["flat_vols"]
+        )
+    if kind in ("black_swaption", "bachelier_swaption"):
+        swap = p.forward_swap_rate(
+            curve, i["start"], i["tenor"], i["frequency"]
+        )
+        price = (
+            p.black_swaption_price
+            if kind == "black_swaption"
+            else p.bachelier_swaption_price
+        )
+        return price(
+            otype,
+            swap.rate,
+            i["strike"],
+            i["vol"],
+            i["start"],
+            swap.annuity,
+            i["notional"],
+        )
+    if kind == "yield_convexity_adjustment":
+        return p.bond_yield_convexity_adjustment(
+            i["forward_yield"],
+            i["vol"],
+            i["t"],
+            i["coupon_rate"],
+            i["maturity"],
+            i["frequency"],
+        )
+    if kind == "timing_factor":
+        return p.timing_adjustment_factor(
+            i["forward_rate"],
+            i["forward_vol"],
+            i["variable_vol"],
+            i["correlation"],
+            i["t"],
+            i["tau"],
+        )
+    if kind == "quanto_factor":
+        return p.quanto_adjustment_factor(
+            i["correlation"], i["exchange_vol"], i["variable_vol"], i["t"]
+        )
+    if kind == "in_arrears_rate":
+        return p.in_arrears_rate(i["forward_rate"], i["vol"], i["t"], i["tau"])
+    if kind == "cms_rate":
+        return p.cms_rate(p.CmsTerms(**i["terms"]))
+    if kind in ("vasicek_bond", "cir_bond"):
+        model = (md.Vasicek if kind == "vasicek_bond" else md.Cir)(
+            i["a"], i["b"], i["sigma"]
+        )
+        return md.bond_price(model, i["r"], i["tau"])
+    if kind == "vasicek_bond_option":
+        v = md.Vasicek(i["a"], i["b"], i["sigma"])
+        return md.zero_bond_option_price(
+            v, otype, i["r"], i["expiry"], i["maturity"], i["strike"]
+        )
+    if kind.startswith("hw_"):
+        hw = md.HullWhite(curve, i["a"], i["sigma"])
+        if kind == "hw_zero_bond_option":
+            return hw.zero_bond_option(
+                otype, i["expiry"], i["maturity"], i["strike"]
+            )
+        if kind == "hw_coupon_bond_option":
+            return hw.coupon_bond_option(
+                otype, i["expiry"], i["times"], i["amounts"], i["strike"]
+            )
+        if kind == "hw_caplet":
+            return hw.caplet(
+                otype, i["reset"], i["accrual"], i["strike"], i["notional"]
+            )
+        return None
+    if kind.startswith("tree_"):
+        model = p.ShortRateModel.HULL_WHITE
+        if i.get("model") == "black_karasinski":
+            model = p.ShortRateModel.BLACK_KARASINSKI
+        tree = p.ShortRateTree(
+            curve, i["a"], i["sigma"], i["dt"], i["steps"], model
+        )
+        if kind == "tree_alphas":
+            return tree.alphas
+        if kind == "tree_swaption":
+            return p.tree_swaption(
+                tree,
+                otype,
+                i["strike"],
+                i["period_steps"],
+                i["end_step"],
+                i["exercise_steps"],
+            )
+        if kind == "tree_bond_option":
+            exercise = getattr(lib.instruments.Exercise, i["exercise"].upper())
+            flows = [p.TreeCashFlow(s, a) for s, a in i["bond"]]
+            return p.tree_bond_option(
+                tree, otype, exercise, i["expiry_step"], flows, i["strike"]
+            )
+        return None
+    if kind == "lmm_lambdas":
+        return md.lmm_volatilities_from_caplets(i["caplet_vols"])
+    if kind == "rebonato_vol":
+        spec = md.LmmSpec(i["accrual"], i["forwards"], i["loadings"])
+        return md.rebonato_swaption_volatility(spec, i["start"], i["end"])
+    if kind == "mbs_psa":
+        pool = p.MortgagePool(
+            i["balance"],
+            i["mortgage_rate"],
+            i["pass_through_rate"],
+            i["months"],
+        )
+        flows = p.pass_through_cash_flows(pool, i["psa"])
+        v = p.value_cash_flows(flows, curve)
+        return [v.pass_through, v.interest_only, v.principal_only]
+    if kind == "schedule_swap":
+        return p.schedule_swap_value(curve, _periods(lib, i))
+    if kind == "in_arrears_swap":
+        periods = _periods(lib, i)
+        return p.in_arrears_swap_value(
+            curve, periods, [i["vol"]] * len(periods)
+        )
+    if kind == "cms_swap":
+        periods = _periods(lib, i)
+        leg = p.CmsLeg(
+            i["cms_tenor"],
+            i["cms_frequency"],
+            i["forward_vol"],
+            i["correlation"],
+        )
+        return p.cms_swap_value(curve, periods, leg, [i["vol"]] * len(periods))
+    if kind == "accrual_fixed_leg":
+        return p.accrual_fixed_leg_value(
+            curve,
+            _periods(lib, i),
+            i["low"],
+            i["high"],
+            i["vol"],
+            i["observations"],
+        )
+    return None
+
+
 def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
     """Returns what `lib` computes for one golden case.
 
@@ -995,6 +1174,7 @@ def evaluate(lib: types.ModuleType, kind: str, inputs: dict[str, Any]) -> Any:
         _evaluate_m7,
         _evaluate_m8,
         _evaluate_m9,
+        _evaluate_m10,
     ):
         result = extra(lib, kind, i)
         if result is not None:

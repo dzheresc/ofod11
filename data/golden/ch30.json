@@ -1,0 +1,63 @@
+{
+  "chapter": 30,
+  "cases": [
+    {
+      "id": "convexity_example",
+      "ref": "Example 30.1: 1-year rate paid in 3 years, 10% annual, 20% vol: adjustment 0.00109",
+      "kind": "yield_convexity_adjustment",
+      "inputs": {
+        "forward_yield": 0.1,
+        "vol": 0.2,
+        "t": 3.0,
+        "coupon_rate": 0.0,
+        "maturity": 1.0,
+        "frequency": 1
+      },
+      "expected": 0.00109,
+      "tol": 1e-05
+    },
+    {
+      "id": "swap_rate_convexity",
+      "ref": "Ch 30.1 convexity adjustment of a 3-year annual swap rate of 12% observed in 4 years, 22% vol (computed)",
+      "kind": "yield_convexity_adjustment",
+      "inputs": {
+        "forward_yield": 0.12,
+        "vol": 0.22,
+        "t": 4.0,
+        "coupon_rate": 0.12,
+        "maturity": 3.0,
+        "frequency": 1
+      },
+      "expected": 0.0047906262954684,
+      "tol": 1e-10
+    },
+    {
+      "id": "timing_example",
+      "ref": "Example 30.3 (Example 30.1 paid in 4 years): factor exp(-0.2 x 0.2 x 0.1 x 3 / 1.1)",
+      "kind": "timing_factor",
+      "inputs": {
+        "forward_rate": 0.1,
+        "forward_vol": 0.2,
+        "variable_vol": 0.2,
+        "correlation": 1.0,
+        "t": 3.0,
+        "tau": 1.0
+      },
+      "expected": 0.9891501974333162,
+      "tol": 1e-12
+    },
+    {
+      "id": "quanto_factor",
+      "ref": "Ch 30.3 quanto factor, rho = -0.3, sigma_W = 12%, sigma_V = 25%, T = 2 (computed)",
+      "kind": "quanto_factor",
+      "inputs": {
+        "correlation": -0.3,
+        "exchange_vol": 0.12,
+        "variable_vol": 0.25,
+        "t": 2.0
+      },
+      "expected": 0.9821610323583008,
+      "tol": 1e-10
+    }
+  ]
+}
