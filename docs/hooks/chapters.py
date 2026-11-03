@@ -105,5 +105,6 @@ def on_config(config: Any) -> Any:
         {"Plan": "plan.md"},
         {"Performance": "PERF.md"},
         {"Library comparison": "comparison_plan.md"},
+        {"Comparison results": "COMPARISON.md"},
     ]
     return config

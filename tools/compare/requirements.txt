@@ -1,0 +1,6 @@
+# Libraries compared with ofod by tools/compare/compare_python.py. They are
+# not dependencies of ofod; the versions are the ones in docs/COMPARISON.md.
+QuantLib==1.44
+financepy==1.1.2
+arch==8.0.0
+vollib==1.0.11

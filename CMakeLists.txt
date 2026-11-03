@@ -5,6 +5,7 @@ project(ofod11 VERSION 0.1.0 LANGUAGES CXX
 
 option(OFOD_BUILD_TESTS "Build C++ tests" ON)
 option(OFOD_BUILD_BENCH "Build benchmarks" OFF)
+option(OFOD_BUILD_COMPARE "Build the QuantLib comparison benchmarks" OFF)
 option(OFOD_BUILD_CHAPTERS "Build chapter examples" ON)
 option(OFOD_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
@@ -27,6 +28,10 @@ endif()
 
 if(OFOD_BUILD_BENCH)
   add_subdirectory(cpp/bench)
+endif()
+
+if(OFOD_BUILD_COMPARE)
+  add_subdirectory(cpp/compare)
 endif()
 
 if(OFOD_BUILD_CHAPTERS)

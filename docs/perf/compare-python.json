@@ -1,0 +1,555 @@
+{
+  "machine": "x86_64",
+  "cpus": 4,
+  "versions": {
+    "python": "3.13.18",
+    "numpy": "2.3.5",
+    "numba": "0.62.1",
+    "QuantLib": "1.44",
+    "financepy": "1.1.2",
+    "arch": "8.0.0",
+    "vollib": "1.0.11"
+  },
+  "cases": [
+    {
+      "name": "bsm_price",
+      "title": "BSM call, S=42 K=40 r=10% sigma=20% T=0.5",
+      "reference": 4.759422392871535,
+      "reference_note": "closed form with erfc",
+      "notes": {
+        "QuantLib": "blackFormula (function, no instrument objects)",
+        "FinancePy": "european_value (Numba ufunc)"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 5.82639408000432e-07,
+          "first_call_seconds": 8.216999958676752e-06,
+          "value": 4.759422392871535,
+          "error": 0.0,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 1.206951870001376e-07,
+          "first_call_seconds": 2.6116000071851886e-05,
+          "value": 4.759422392871535,
+          "error": 0.0,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 2.457402489999367e-07,
+          "first_call_seconds": 3.4303999882467906e-05,
+          "value": 4.759422392871536,
+          "error": 8.881784197001252e-16,
+          "note": "blackFormula (function, no instrument objects)"
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 2.8268091399991135e-06,
+          "first_call_seconds": 0.00010231700002805155,
+          "value": 4.759422997128206,
+          "error": 6.042566704778096e-07,
+          "note": "european_value (Numba ufunc)"
+        },
+        {
+          "library": "vollib",
+          "seconds": 3.602667879999899e-06,
+          "first_call_seconds": 6.810900003983988e-05,
+          "value": 4.759422392871532,
+          "error": -3.552713678800501e-15,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "implied_volatility",
+      "title": "Implied vol, call 1.875, S=21 K=20 r=10% T=0.25",
+      "reference": 0.23451291399764315,
+      "reference_note": "Let's Be Rational (machine precision)",
+      "notes": {
+        "QuantLib": "blackFormulaImpliedStdDev, default accuracy 1e-6",
+        "FinancePy": "Newton with bisection fallback (Numba)"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 6.742674350005018e-06,
+          "first_call_seconds": 3.376099994056858e-05,
+          "value": 0.2345129139976443,
+          "error": 1.1379786002407855e-15,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 4.496919660000458e-07,
+          "first_call_seconds": 1.3498000043909997e-05,
+          "value": 0.2345129139976443,
+          "error": 1.1379786002407855e-15,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 1.2540296000008767e-06,
+          "first_call_seconds": 5.513099995368975e-05,
+          "value": 0.23451240835426365,
+          "error": -5.056433795003201e-07,
+          "note": "blackFormulaImpliedStdDev, default accuracy 1e-6"
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 4.461898750000728e-05,
+          "first_call_seconds": 0.011573556000030294,
+          "value": 0.23451269433107072,
+          "error": -2.1966657243188692e-07,
+          "note": "Newton with bisection fallback (Numba)"
+        },
+        {
+          "library": "vollib",
+          "seconds": 1.681919160000689e-05,
+          "first_call_seconds": 9.027599980981904e-05,
+          "value": 0.23451291399764315,
+          "error": 0.0,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "crr_american_100",
+      "title": "American put, CRR 100 steps, S=K=50 r=10% sigma=40% T=5/12",
+      "reference": 4.28423022669004,
+      "reference_note": "CRR, mean of 20,000 and 20,001 steps",
+      "notes": {},
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.001721371950000048,
+          "first_call_seconds": 0.002745161999882839,
+          "value": 4.278058548145517,
+          "error": -0.0061716785445229405,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 2.0726819400010755e-05,
+          "first_call_seconds": 4.0471999909641454e-05,
+          "value": 4.278058548145517,
+          "error": -0.0061716785445229405,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 5.85613762000321e-05,
+          "first_call_seconds": 0.0003408330001093418,
+          "value": 4.278146069648152,
+          "error": -0.006084157041888361,
+          "note": ""
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 1.2474407100000918e-05,
+          "first_call_seconds": 0.00010036700018645206,
+          "value": 4.278058548145591,
+          "error": -0.006171678544449222,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "crr_american_1000",
+      "title": "American put, CRR 1000 steps, S=K=50 r=10% sigma=40% T=5/12",
+      "reference": 4.28423022669004,
+      "reference_note": "CRR, mean of 20,000 and 20,001 steps",
+      "notes": {},
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.157184615999995,
+          "first_call_seconds": 0.17796118299997943,
+          "value": 4.283627214588229,
+          "error": -0.0006030121018110179,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.0014969246600003317,
+          "first_call_seconds": 0.0014828569999281171,
+          "value": 4.283627214588229,
+          "error": -0.0006030121018110179,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 0.0042908178000016055,
+          "first_call_seconds": 0.00829407999981413,
+          "value": 4.283635985786911,
+          "error": -0.0005942409031289841,
+          "note": ""
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 0.003945399320000434,
+          "first_call_seconds": 0.0076195419999294245,
+          "value": 4.283627214589329,
+          "error": -0.0006030121007114531,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "fd_american_cn_200x100",
+      "title": "American put, Crank-Nicolson, 200 price x 100 time steps",
+      "reference": 4.28423022669004,
+      "reference_note": "CRR, mean of 20,000 and 20,001 steps",
+      "notes": {
+        "QuantLib": "log-spot grid, 200 points; early exercise by projection after each step",
+        "FinancePy": "log-spot grid of +-5 sd, 200 points; projection",
+        "FinancePy PSOR": "log-spot grid of +-5 sd; PSOR to 1e-13",
+        "ofod (Python)": "spot grid 0-200; Brennan-Schwartz",
+        "ofod_cpp": "spot grid 0-200; Brennan-Schwartz",
+        "ofod_cpp projection": "spot grid 0-200; projection, as QuantLib and FinancePy"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.009336909999997261,
+          "first_call_seconds": 0.010549602999844865,
+          "value": 4.279686107506009,
+          "error": -0.004544119184030748,
+          "note": "spot grid 0-200; Brennan-Schwartz"
+        },
+        {
+          "library": "ofod (Python) projection",
+          "seconds": 0.00843441743999847,
+          "first_call_seconds": 0.014216939000107232,
+          "value": 4.277554666036081,
+          "error": -0.006675560653959245,
+          "note": ""
+        },
+        {
+          "library": "ofod (Python) PSOR",
+          "seconds": 0.017429937999997945,
+          "first_call_seconds": 0.013615445999903386,
+          "value": 4.279686107506006,
+          "error": -0.004544119184034301,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.00046366947199976495,
+          "first_call_seconds": 0.0006411230001504009,
+          "value": 4.279686107506009,
+          "error": -0.004544119184030748,
+          "note": "spot grid 0-200; Brennan-Schwartz"
+        },
+        {
+          "library": "ofod_cpp projection",
+          "seconds": 0.00039066326000011033,
+          "first_call_seconds": 0.00044404300001588126,
+          "value": 4.277554666036081,
+          "error": -0.006675560653959245,
+          "note": "spot grid 0-200; projection, as QuantLib and FinancePy"
+        },
+        {
+          "library": "ofod_cpp PSOR",
+          "seconds": 0.0006849885020001239,
+          "first_call_seconds": 0.0006979029999456543,
+          "value": 4.279686107506006,
+          "error": -0.004544119184034301,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 0.0014906094399998438,
+          "first_call_seconds": 0.0015192519999800425,
+          "value": 4.281503553601956,
+          "error": -0.002726673088083942,
+          "note": "log-spot grid, 200 points; early exercise by projection after each step"
+        },
+        {
+          "library": "FinancePy PSOR",
+          "seconds": 0.019713691099991593,
+          "first_call_seconds": 0.025794652999820755,
+          "value": 4.27984874969358,
+          "error": -0.004381476996459632,
+          "note": "log-spot grid of +-5 sd; PSOR to 1e-13"
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 0.0010435838999990211,
+          "first_call_seconds": 0.013790066999945338,
+          "value": 4.279848749682056,
+          "error": -0.004381477007983747,
+          "note": "log-spot grid of +-5 sd, 200 points; projection"
+        }
+      ]
+    },
+    {
+      "name": "mc_european_100k",
+      "title": "European call, Monte Carlo, 100,000 draws, S=50 K=40 r=10% sigma=40% T=0.5",
+      "reference": 13.040706097238647,
+      "reference_note": "BSM closed form; one standard error is 0.042",
+      "notes": {
+        "QuantLib": "Mersenne Twister + inverse normal, one time step",
+        "FinancePy": "value_mc_numba_noanti (Numba loop)"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.0018997020599999814,
+          "first_call_seconds": 0.003074900000001435,
+          "value": 12.961912135398197,
+          "error": -0.07879396184045007,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.005784886999999799,
+          "first_call_seconds": 0.004701105000094685,
+          "value": 13.098688685056185,
+          "error": 0.057982587817537734,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 0.05385326739997254,
+          "first_call_seconds": 0.0677710790000674,
+          "value": 13.019244316167716,
+          "error": -0.021461781070930996,
+          "note": "Mersenne Twister + inverse normal, one time step"
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 0.0037468072000001484,
+          "first_call_seconds": 0.005743024999901536,
+          "value": 13.05727569397092,
+          "error": 0.016569596732272984,
+          "note": "value_mc_numba_noanti (Numba loop)"
+        }
+      ]
+    },
+    {
+      "name": "heston_price_1y",
+      "title": "Heston call, S=K=100 r=3% T=1, v0=theta=0.04 kappa=2 sigma=0.3 rho=-0.7",
+      "reference": 9.242521073959068,
+      "reference_note": "QuantLib adaptive Gauss-Lobatto at 1e-13",
+      "notes": {
+        "QuantLib": "AnalyticHestonEngine default (Gauss-Laguerre, 144 points)",
+        "QuantLib COS": "COSHestonEngine defaults",
+        "FinancePy": "value_lewis (SciPy quad over the Lewis integral)"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.0018476296200003618,
+          "first_call_seconds": 0.002149819999885949,
+          "value": 9.242521073959,
+          "error": -6.750155989720952e-14,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.0005984118860001218,
+          "first_call_seconds": 0.000755963000074189,
+          "value": 9.242521073958986,
+          "error": -8.171241461241152e-14,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 5.397630760003267e-05,
+          "first_call_seconds": 0.00021983700003147533,
+          "value": 9.242521073959065,
+          "error": -3.552713678800501e-15,
+          "note": "AnalyticHestonEngine default (Gauss-Laguerre, 144 points)"
+        },
+        {
+          "library": "QuantLib COS",
+          "seconds": 6.723535340001944e-05,
+          "first_call_seconds": 0.00011366500007170544,
+          "value": 9.242521073954464,
+          "error": -4.604316927725449e-12,
+          "note": "COSHestonEngine defaults"
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 0.00102596096999946,
+          "first_call_seconds": 0.0011666020000120625,
+          "value": 9.24252107395968,
+          "error": 6.110667527536862e-13,
+          "note": "value_lewis (SciPy quad over the Lewis integral)"
+        }
+      ]
+    },
+    {
+      "name": "longstaff_schwartz_10k",
+      "title": "American put, Longstaff-Schwartz, 10,000 paths x 50 dates, S=36 K=40 r=6% sigma=20% T=1",
+      "reference": 4.486679078014118,
+      "reference_note": "CRR, mean of 20,000 and 20,001 steps (American, so the 50-date Bermudan sits a little below); one standard error is 0.028",
+      "notes": {
+        "QuantLib": "separate 10,000 calibration paths, then 10,000 pricing paths",
+        "FinancePy": "antithetic pairs (5,000 x 2); polynomial degree 2"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.04142276359998505,
+          "first_call_seconds": 0.039241496000158804,
+          "value": 4.497394597344397,
+          "error": 0.010715519330278589,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.025635093000005327,
+          "first_call_seconds": 0.025643032000061794,
+          "value": 4.45766878650518,
+          "error": -0.029010291508938302,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 0.596671767999851,
+          "first_call_seconds": 0.6186830930000724,
+          "value": 4.434276906837971,
+          "error": -0.05240217117614776,
+          "note": "separate 10,000 calibration paths, then 10,000 pricing paths"
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 0.07216262719998667,
+          "first_call_seconds": 0.08268658700012566,
+          "value": 4.471005403674716,
+          "error": -0.015673674339402588,
+          "note": "antithetic pairs (5,000 x 2); polynomial degree 2"
+        }
+      ]
+    },
+    {
+      "name": "hull_white_bermudan_500",
+      "title": "Receiver Bermudan swaption, Hull-White a=0.1 sigma=1%, 10y annual, exercise years 1-9, 500 tree steps",
+      "reference": 0.03275530276478637,
+      "reference_note": "QuantLib FdHullWhiteSwaptionEngine, 2,000 x 800",
+      "notes": {
+        "QuantLib": "TreeSwaptionEngine, 500 steps plus the exercise and payment dates; tree build included"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.0822280037999917,
+          "first_call_seconds": 0.0769436709999809,
+          "value": 0.03280263689110082,
+          "error": 4.7334126314448055e-05,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.001251555674999736,
+          "first_call_seconds": 0.0014468589999978576,
+          "value": 0.032802636891099655,
+          "error": 4.733412631328232e-05,
+          "note": ""
+        },
+        {
+          "library": "QuantLib",
+          "seconds": 0.17209894999996322,
+          "first_call_seconds": 0.17467236900006355,
+          "value": 0.03277944587442409,
+          "error": 2.4143109637719817e-05,
+          "note": "TreeSwaptionEngine, 500 steps plus the exercise and payment dates; tree build included"
+        }
+      ]
+    },
+    {
+      "name": "tranche_spread_125",
+      "title": "Mezzanine 3-6% tranche spread, 125 names, h=1% R=40% rho=0.3, 5y quarterly",
+      "reference": 0.047175454266599075,
+      "reference_note": "ofod_cpp with 180 Gauss-Hermite points (199 and 200 points return garbage, see docs/COMPARISON.md)",
+      "notes": {
+        "ofod (Python)": "64 Gauss-Hermite points, binomial loss distribution",
+        "ofod_cpp": "64 Gauss-Hermite points, binomial loss distribution",
+        "FinancePy": "tranche_surv_prob_recursion with 64 rectangle steps on [-6, 6]; legs assembled by this script"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.07098829699998532,
+          "first_call_seconds": 0.10765814799992768,
+          "value": 0.047175259859935814,
+          "error": -1.9440666326059342e-07,
+          "note": "64 Gauss-Hermite points, binomial loss distribution"
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.0018233795399999052,
+          "first_call_seconds": 0.003043800000114061,
+          "value": 0.04717525985993719,
+          "error": -1.9440666188669242e-07,
+          "note": "64 Gauss-Hermite points, binomial loss distribution"
+        },
+        {
+          "library": "FinancePy",
+          "seconds": 0.021120513000005302,
+          "first_call_seconds": 0.025036054000111108,
+          "value": 0.04717546138661282,
+          "error": 7.120013745254283e-09,
+          "note": "tranche_surv_prob_recursion with 64 rectangle steps on [-6, 6]; legs assembled by this script"
+        }
+      ]
+    },
+    {
+      "name": "fit_garch11_1000",
+      "title": "GARCH(1,1) MLE, 1,000 simulated returns (omega=2e-6 alpha=0.1 beta=0.88); value is Hull's log likelihood at the fitted parameters",
+      "reference": NaN,
+      "reference_note": "the best log likelihood found (higher is better)",
+      "notes": {
+        "arch": "arch_model(mean='Zero', vol='GARCH'), SLSQP, backcast start variance",
+        "ofod_cpp": "Nelder-Mead on Hull's likelihood"
+      },
+      "rows": [
+        {
+          "library": "ofod (Python)",
+          "seconds": 0.048303925200025334,
+          "first_call_seconds": 0.044801451000012094,
+          "value": 8140.510885318855,
+          "error": null,
+          "note": ""
+        },
+        {
+          "library": "ofod_cpp",
+          "seconds": 0.0020080228899996655,
+          "first_call_seconds": 0.0020505309998952725,
+          "value": 8140.510885318855,
+          "error": null,
+          "note": "Nelder-Mead on Hull's likelihood"
+        },
+        {
+          "library": "arch",
+          "seconds": 0.003986650639999425,
+          "first_call_seconds": 0.008023050000019794,
+          "value": 8140.306411165409,
+          "error": null,
+          "note": "arch_model(mean='Zero', vol='GARCH'), SLSQP, backcast start variance"
+        }
+      ],
+      "fits": {
+        "ofod (Python)": [
+          2.739704464056408e-06,
+          0.09946656605308828,
+          0.8799064115642499
+        ],
+        "ofod_cpp": [
+          2.739704464056408e-06,
+          0.09946656605308828,
+          0.8799064115642499
+        ],
+        "arch": [
+          2.49901895864009e-06,
+          0.1,
+          0.88
+        ]
+      }
+    }
+  ]
+}
