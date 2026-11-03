@@ -358,6 +358,16 @@ def mc_case() -> Case:
                 p.monte_carlo_european(call, market, opts).price
             )
         )
+    zig_call = ofod_cpp.instruments.VanillaOption(strike=k, maturity=t)
+    zig_market = ofod_cpp.pricers.TreeMarket(s, r, 0.0, v)
+    zig_opts = ofod_cpp.pricers.McOptions(
+        paths=paths, rng=ofod_cpp.pricers.Rng.ZIGGURAT
+    )
+    runners[OFOD_CPP + " ziggurat"] = lambda: (
+        ofod_cpp.pricers.monte_carlo_european(
+            zig_call, zig_market, zig_opts
+        ).price
+    )
     option = ql.VanillaOption(
         ql.PlainVanillaPayoff(ql.Option.Call, k),
         ql.EuropeanExercise(_ql_date(6)),
@@ -390,6 +400,8 @@ def mc_case() -> Case:
         f"BSM closed form; one standard error is {std_error:.3f}",
         runners,
         {
+            OFOD_CPP: "mt19937_64 + std::normal_distribution (default)",
+            OFOD_CPP + " ziggurat": "xoshiro256++ + ziggurat (Rng.ZIGGURAT)",
             QUANTLIB: "Mersenne Twister + inverse normal, one time step",
             FINANCEPY: "value_mc_numba_noanti (Numba loop)",
         },

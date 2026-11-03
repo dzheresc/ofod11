@@ -46,11 +46,14 @@ struct HestonParams {
   double rho;    // Correlation of the two Brownian motions.
 };
 
-// Heston's semi-analytic price (Ch 27.2): one Fourier integral of the
-// characteristic function in the "little trap" form, integrated with
-// 16-point Gauss-Legendre panels of width 1 until three consecutive
-// panels add less than 1e-14 (1 + |integral|), at most 2000 panels.
-// m.volatility is ignored.
+// Heston's semi-analytic price (Ch 27.2). Uses Lewis's single-integral
+// form, C = S e^{-qT} - sqrt(F K) e^{-rT} / pi int_0^inf Re[e^{iu ln(F/K)}
+// psi(u - i/2)] / (u^2 + 1/4) du, with the characteristic function psi of
+// ln(S_T / F) in the "little trap" form, and a Black-Scholes control
+// variate at the expected average variance. The integral uses 16-point
+// Gauss-Legendre panels whose width grows from 1/2 to a width set by the
+// integrand's decay and oscillation, until three consecutive panels add
+// less than 1e-14 (1 + |integral|). m.volatility is ignored.
 [[nodiscard]] double HestonPrice(OptionType type, const TreeMarket& m,
                                  double strike, double t,
                                  const HestonParams& params);

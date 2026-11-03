@@ -23,6 +23,7 @@
 #include "ofod/pricers/model_pricers.h"
 #include "ofod/pricers/monte_carlo.h"
 #include "ofod/pricers/short_rate_tree.h"
+#include "ofod/random/normal_generator.h"
 
 namespace ofod::pricers {
 namespace {
@@ -101,6 +102,31 @@ void BmMonteCarloEuropean(benchmark::State& state) {
 BENCHMARK(BmMonteCarloEuropean)
     ->DenseRange(0, 6)
     ->Unit(benchmark::kMillisecond);
+
+// The same with the opt-in ziggurat generator.
+void BmMonteCarloEuropeanZiggurat(benchmark::State& state) {
+  const auto method = static_cast<VarianceReduction>(state.range(0));
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(MonteCarloEuropean(
+        kCall, kMarket,
+        {.paths = 100'000, .method = method, .rng = Rng::kZiggurat}));
+  }
+}
+BENCHMARK(BmMonteCarloEuropeanZiggurat)
+    ->DenseRange(0, 6)
+    ->Unit(benchmark::kMillisecond);
+
+void BmNormalGenerator(benchmark::State& state) {
+  ofod::random::NormalGenerator gen(1);
+  for (auto _ : state) benchmark::DoNotOptimize(gen.Next());
+}
+BENCHMARK(BmNormalGenerator);
+
+void BmZigguratNormalGenerator(benchmark::State& state) {
+  ofod::random::ZigguratNormalGenerator gen(1);
+  for (auto _ : state) benchmark::DoNotOptimize(gen.Next());
+}
+BENCHMARK(BmZigguratNormalGenerator);
 
 void BmPathSimulator(benchmark::State& state) {
   const int threads = static_cast<int>(state.range(0));

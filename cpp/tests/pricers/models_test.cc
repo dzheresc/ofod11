@@ -7,9 +7,13 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <cmath>
+#include <complex>
 #include <limits>
+#include <numbers>
 #include <random>
+#include <vector>
 
+#include "ofod/math/quadrature.h"
 #include "ofod/pricers/american_mc.h"
 #include "ofod/pricers/binomial_tree.h"
 #include "ofod/pricers/black_scholes.h"
@@ -111,6 +115,83 @@ TEST_CASE("Heston reduces to BSM and agrees with Monte Carlo", "[ch27]") {
   REQUIRE(vol_low.has_value());
   REQUIRE(vol_high.has_value());
   CHECK(*vol_low > *vol_high + 0.03);
+}
+
+// Reference Heston call, written independently of the library: Lewis's
+// integral without the control variate, std::complex arithmetic, and
+// fixed 16-point Gauss-Legendre panels of width 1/4 until three in a row
+// add less than 1e-16.
+double ReferenceHestonCall(const TreeMarket& m, double strike, double t,
+                           const HestonParams& p) {
+  using Complex = std::complex<double>;
+  const Complex i(0.0, 1.0);
+  const double forward = m.spot * std::exp((m.rate - m.yield) * t);
+  const double x = std::log(forward / strike);
+  auto cf = [&](Complex xi) {  // E[exp(i xi ln(S_T / F))], little trap.
+    const double s2 = p.sigma * p.sigma;
+    const Complex beta = p.kappa - p.rho * p.sigma * i * xi;
+    const Complex d = std::sqrt(beta * beta + s2 * (i * xi + xi * xi));
+    const Complex g = (beta - d) / (beta + d);
+    const Complex e = std::exp(-d * t);
+    const Complex c =
+        p.kappa * p.theta / s2 *
+        ((beta - d) * t - 2.0 * std::log((1.0 - g * e) / (1.0 - g)));
+    const Complex dd = (beta - d) / s2 * (1.0 - e) / (1.0 - g * e);
+    return std::exp(c + dd * p.v0);
+  };
+  const auto rule = math::GaussLegendre(16, 0.0, 0.25);
+  double integral = 0.0;
+  int quiet = 0;
+  for (int k = 0; k < 400000 && quiet < 3; ++k) {
+    double part = 0.0;
+    for (std::size_t j = 0; j < 16; ++j) {
+      const double u = 0.25 * k + rule->nodes[j];
+      part += rule->weights[j] *
+              (std::exp(i * u * x) * cf(Complex(u, -0.5))).real() /
+              (u * u + 0.25);
+    }
+    integral += part;
+    quiet = std::abs(part) < 1e-16 ? quiet + 1 : 0;
+  }
+  return m.spot * std::exp(-m.yield * t) - std::sqrt(forward * strike) *
+                                               std::exp(-m.rate * t) /
+                                               std::numbers::pi * integral;
+}
+
+TEST_CASE("Heston matches an independent reference integral", "[ch27]") {
+  const TreeMarket m{100.0, 0.03, 0.01, 0.0};
+  struct Case {
+    HestonParams p;
+    double t;
+  };
+  const std::vector<Case> cases = {
+      {{0.04, 2.0, 0.04, 0.3, -0.7}, 1.0 / 12.0},
+      {{0.04, 2.0, 0.04, 0.3, -0.7}, 1.0},
+      {{0.04, 2.0, 0.04, 0.3, -0.7}, 5.0},
+      {{0.04, 2.0, 0.04, 1.0, -0.9}, 0.25},  // High vol of variance.
+      {{0.01, 0.5, 0.09, 0.2, 0.5}, 1.0},    // Positive correlation.
+      {{0.04, 0.1, 0.06, 2.0, -0.95}, 1.0},  // Feller badly violated.
+      {{0.04, 0.1, 0.06, 2.0, -0.95}, 30.0},
+      {{0.04, 10.0, 0.04, 1.5, -0.99}, 0.25},  // Fast mean reversion.
+      {{0.09, 0.0, 0.04, 0.4, 0.9}, 10.0},     // No mean reversion.
+  };
+  for (const auto& c : cases) {
+    for (double k : {60.0, 100.0, 140.0}) {
+      CAPTURE(c.p.sigma, c.p.rho, c.t, k);
+      CHECK_THAT(HestonPrice(kCall, m, k, c.t, c.p),
+                 WithinAbs(ReferenceHestonCall(m, k, c.t, c.p), 1e-10));
+    }
+  }
+  // kappa = 0 with rho = 0.9 over 30 years: the old Hull-form integral gave
+  // calls below their no-arbitrage bound S e^{-qT} - K e^{-rT}.
+  const HestonParams no_reversion{0.09, 0.0, 0.04, 0.4, 0.9};
+  for (double k : {50.0, 100.0, 200.0}) {
+    const double call = HestonPrice(kCall, m, k, 30.0, no_reversion);
+    CHECK(call > 100.0 * std::exp(-0.3) - k * std::exp(-0.9));
+    CHECK(call < 100.0 * std::exp(-0.3));
+    CHECK_THAT(call,
+               WithinAbs(ReferenceHestonCall(m, k, 30.0, no_reversion), 1e-9));
+  }
 }
 
 TEST_CASE("Longstaff-Schwartz matches the binomial tree", "[ch27]") {

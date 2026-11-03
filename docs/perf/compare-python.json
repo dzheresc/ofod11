@@ -23,40 +23,40 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 5.82639408000432e-07,
-          "first_call_seconds": 8.216999958676752e-06,
+          "seconds": 6.193457199997283e-07,
+          "first_call_seconds": 7.339999683608767e-06,
           "value": 4.759422392871535,
           "error": 0.0,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 1.206951870001376e-07,
-          "first_call_seconds": 2.6116000071851886e-05,
+          "seconds": 1.3085737850019541e-07,
+          "first_call_seconds": 2.2275999981502537e-05,
           "value": 4.759422392871535,
           "error": 0.0,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 2.457402489999367e-07,
-          "first_call_seconds": 3.4303999882467906e-05,
+          "seconds": 2.5023142899999585e-07,
+          "first_call_seconds": 3.3740000162651995e-05,
           "value": 4.759422392871536,
           "error": 8.881784197001252e-16,
           "note": "blackFormula (function, no instrument objects)"
         },
         {
           "library": "FinancePy",
-          "seconds": 2.8268091399991135e-06,
-          "first_call_seconds": 0.00010231700002805155,
+          "seconds": 2.7879224800017257e-06,
+          "first_call_seconds": 0.00010399799975857604,
           "value": 4.759422997128206,
           "error": 6.042566704778096e-07,
           "note": "european_value (Numba ufunc)"
         },
         {
           "library": "vollib",
-          "seconds": 3.602667879999899e-06,
-          "first_call_seconds": 6.810900003983988e-05,
+          "seconds": 3.867558689998987e-06,
+          "first_call_seconds": 5.271300005915691e-05,
           "value": 4.759422392871532,
           "error": -3.552713678800501e-15,
           "note": ""
@@ -75,40 +75,40 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 6.742674350005018e-06,
-          "first_call_seconds": 3.376099994056858e-05,
+          "seconds": 6.306408020000163e-06,
+          "first_call_seconds": 4.7514000016235514e-05,
           "value": 0.2345129139976443,
           "error": 1.1379786002407855e-15,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 4.496919660000458e-07,
-          "first_call_seconds": 1.3498000043909997e-05,
+          "seconds": 4.606765920007092e-07,
+          "first_call_seconds": 1.1930000255233608e-05,
           "value": 0.2345129139976443,
           "error": 1.1379786002407855e-15,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 1.2540296000008767e-06,
-          "first_call_seconds": 5.513099995368975e-05,
+          "seconds": 1.371770774999277e-06,
+          "first_call_seconds": 3.951500002585817e-05,
           "value": 0.23451240835426365,
           "error": -5.056433795003201e-07,
           "note": "blackFormulaImpliedStdDev, default accuracy 1e-6"
         },
         {
           "library": "FinancePy",
-          "seconds": 4.461898750000728e-05,
-          "first_call_seconds": 0.011573556000030294,
+          "seconds": 4.5712096399984145e-05,
+          "first_call_seconds": 0.011847888000374951,
           "value": 0.23451269433107072,
           "error": -2.1966657243188692e-07,
           "note": "Newton with bisection fallback (Numba)"
         },
         {
           "library": "vollib",
-          "seconds": 1.681919160000689e-05,
-          "first_call_seconds": 9.027599980981904e-05,
+          "seconds": 1.516570264998336e-05,
+          "first_call_seconds": 0.00010582699997030431,
           "value": 0.23451291399764315,
           "error": 0.0,
           "note": ""
@@ -124,32 +124,32 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.001721371950000048,
-          "first_call_seconds": 0.002745161999882839,
+          "seconds": 0.0018351915200014446,
+          "first_call_seconds": 0.0017087549999814655,
           "value": 4.278058548145517,
           "error": -0.0061716785445229405,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 2.0726819400010755e-05,
-          "first_call_seconds": 4.0471999909641454e-05,
+          "seconds": 6.928620540002157e-06,
+          "first_call_seconds": 2.5334999918413814e-05,
           "value": 4.278058548145517,
           "error": -0.0061716785445229405,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 5.85613762000321e-05,
-          "first_call_seconds": 0.0003408330001093418,
+          "seconds": 6.231500719995893e-05,
+          "first_call_seconds": 0.0003264460001446423,
           "value": 4.278146069648152,
           "error": -0.006084157041888361,
           "note": ""
         },
         {
           "library": "FinancePy",
-          "seconds": 1.2474407100000918e-05,
-          "first_call_seconds": 0.00010036700018645206,
+          "seconds": 1.327118325000356e-05,
+          "first_call_seconds": 9.662699994805735e-05,
           "value": 4.278058548145591,
           "error": -0.006171678544449222,
           "note": ""
@@ -165,32 +165,32 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.157184615999995,
-          "first_call_seconds": 0.17796118299997943,
+          "seconds": 0.1699939899999663,
+          "first_call_seconds": 0.16858409799988294,
           "value": 4.283627214588229,
           "error": -0.0006030121018110179,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.0014969246600003317,
-          "first_call_seconds": 0.0014828569999281171,
+          "seconds": 0.0004091474279994145,
+          "first_call_seconds": 0.00042114699999729055,
           "value": 4.283627214588229,
           "error": -0.0006030121018110179,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 0.0042908178000016055,
-          "first_call_seconds": 0.00829407999981413,
+          "seconds": 0.0044924145400000275,
+          "first_call_seconds": 0.004844145999868488,
           "value": 4.283635985786911,
           "error": -0.0005942409031289841,
           "note": ""
         },
         {
           "library": "FinancePy",
-          "seconds": 0.003945399320000434,
-          "first_call_seconds": 0.0076195419999294245,
+          "seconds": 0.004171518539997123,
+          "first_call_seconds": 0.0073129590000462485,
           "value": 4.283627214589329,
           "error": -0.0006030121007114531,
           "note": ""
@@ -213,72 +213,72 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.009336909999997261,
-          "first_call_seconds": 0.010549602999844865,
+          "seconds": 0.010805743350010744,
+          "first_call_seconds": 0.010321738000129699,
           "value": 4.279686107506009,
           "error": -0.004544119184030748,
           "note": "spot grid 0-200; Brennan-Schwartz"
         },
         {
           "library": "ofod (Python) projection",
-          "seconds": 0.00843441743999847,
-          "first_call_seconds": 0.014216939000107232,
+          "seconds": 0.008930964060000405,
+          "first_call_seconds": 0.00890407699989737,
           "value": 4.277554666036081,
           "error": -0.006675560653959245,
           "note": ""
         },
         {
           "library": "ofod (Python) PSOR",
-          "seconds": 0.017429937999997945,
-          "first_call_seconds": 0.013615445999903386,
+          "seconds": 0.014008584350017372,
+          "first_call_seconds": 0.013514206999843736,
           "value": 4.279686107506006,
           "error": -0.004544119184034301,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.00046366947199976495,
-          "first_call_seconds": 0.0006411230001504009,
+          "seconds": 0.00044506014400030837,
+          "first_call_seconds": 0.00045629299984284444,
           "value": 4.279686107506009,
           "error": -0.004544119184030748,
           "note": "spot grid 0-200; Brennan-Schwartz"
         },
         {
           "library": "ofod_cpp projection",
-          "seconds": 0.00039066326000011033,
-          "first_call_seconds": 0.00044404300001588126,
+          "seconds": 0.00040966425800070285,
+          "first_call_seconds": 0.00042711700007203035,
           "value": 4.277554666036081,
           "error": -0.006675560653959245,
           "note": "spot grid 0-200; projection, as QuantLib and FinancePy"
         },
         {
           "library": "ofod_cpp PSOR",
-          "seconds": 0.0006849885020001239,
-          "first_call_seconds": 0.0006979029999456543,
+          "seconds": 0.0007121568140000818,
+          "first_call_seconds": 0.0007325440001295647,
           "value": 4.279686107506006,
           "error": -0.004544119184034301,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 0.0014906094399998438,
-          "first_call_seconds": 0.0015192519999800425,
+          "seconds": 0.0014859529099999235,
+          "first_call_seconds": 0.0017674779996923462,
           "value": 4.281503553601956,
           "error": -0.002726673088083942,
           "note": "log-spot grid, 200 points; early exercise by projection after each step"
         },
         {
           "library": "FinancePy PSOR",
-          "seconds": 0.019713691099991593,
-          "first_call_seconds": 0.025794652999820755,
+          "seconds": 0.019029049299979305,
+          "first_call_seconds": 0.026729959000022063,
           "value": 4.27984874969358,
           "error": -0.004381476996459632,
           "note": "log-spot grid of +-5 sd; PSOR to 1e-13"
         },
         {
           "library": "FinancePy",
-          "seconds": 0.0010435838999990211,
-          "first_call_seconds": 0.013790066999945338,
+          "seconds": 0.0011565599150003437,
+          "first_call_seconds": 0.008936412999901222,
           "value": 4.279848749682056,
           "error": -0.004381477007983747,
           "note": "log-spot grid of +-5 sd, 200 points; projection"
@@ -291,38 +291,48 @@
       "reference": 13.040706097238647,
       "reference_note": "BSM closed form; one standard error is 0.042",
       "notes": {
+        "ofod_cpp": "mt19937_64 + std::normal_distribution (default)",
+        "ofod_cpp ziggurat": "xoshiro256++ + ziggurat (Rng.ZIGGURAT)",
         "QuantLib": "Mersenne Twister + inverse normal, one time step",
         "FinancePy": "value_mc_numba_noanti (Numba loop)"
       },
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.0018997020599999814,
-          "first_call_seconds": 0.003074900000001435,
+          "seconds": 0.001772691730002407,
+          "first_call_seconds": 0.0035968459997093305,
           "value": 12.961912135398197,
           "error": -0.07879396184045007,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.005784886999999799,
-          "first_call_seconds": 0.004701105000094685,
+          "seconds": 0.004770478220007135,
+          "first_call_seconds": 0.005085648999738623,
           "value": 13.098688685056185,
           "error": 0.057982587817537734,
-          "note": ""
+          "note": "mt19937_64 + std::normal_distribution (default)"
+        },
+        {
+          "library": "ofod_cpp ziggurat",
+          "seconds": 0.0017078701099990212,
+          "first_call_seconds": 0.001752548999775172,
+          "value": 13.031857114913938,
+          "error": -0.008848982324709098,
+          "note": "xoshiro256++ + ziggurat (Rng.ZIGGURAT)"
         },
         {
           "library": "QuantLib",
-          "seconds": 0.05385326739997254,
-          "first_call_seconds": 0.0677710790000674,
+          "seconds": 0.045645116200012124,
+          "first_call_seconds": 0.050929894000091736,
           "value": 13.019244316167716,
           "error": -0.021461781070930996,
           "note": "Mersenne Twister + inverse normal, one time step"
         },
         {
           "library": "FinancePy",
-          "seconds": 0.0037468072000001484,
-          "first_call_seconds": 0.005743024999901536,
+          "seconds": 0.0035892080300027373,
+          "first_call_seconds": 0.0037267679999786196,
           "value": 13.05727569397092,
           "error": 0.016569596732272984,
           "note": "value_mc_numba_noanti (Numba loop)"
@@ -342,40 +352,40 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.0018476296200003618,
-          "first_call_seconds": 0.002149819999885949,
-          "value": 9.242521073959,
-          "error": -6.750155989720952e-14,
+          "seconds": 0.00044022898000002896,
+          "first_call_seconds": 0.0011365010000190523,
+          "value": 9.242521073959056,
+          "error": -1.2434497875801753e-14,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.0005984118860001218,
-          "first_call_seconds": 0.000755963000074189,
-          "value": 9.242521073958986,
-          "error": -8.171241461241152e-14,
+          "seconds": 2.6827460300000893e-05,
+          "first_call_seconds": 5.938000003880006e-05,
+          "value": 9.242521073959058,
+          "error": -1.0658141036401503e-14,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 5.397630760003267e-05,
-          "first_call_seconds": 0.00021983700003147533,
+          "seconds": 4.148054760007653e-05,
+          "first_call_seconds": 0.00015077700027177343,
           "value": 9.242521073959065,
           "error": -3.552713678800501e-15,
           "note": "AnalyticHestonEngine default (Gauss-Laguerre, 144 points)"
         },
         {
           "library": "QuantLib COS",
-          "seconds": 6.723535340001944e-05,
-          "first_call_seconds": 0.00011366500007170544,
+          "seconds": 7.263144999997167e-05,
+          "first_call_seconds": 9.340899987364537e-05,
           "value": 9.242521073954464,
           "error": -4.604316927725449e-12,
           "note": "COSHestonEngine defaults"
         },
         {
           "library": "FinancePy",
-          "seconds": 0.00102596096999946,
-          "first_call_seconds": 0.0011666020000120625,
+          "seconds": 0.0011264622899989263,
+          "first_call_seconds": 0.00131121999993411,
           "value": 9.24252107395968,
           "error": 6.110667527536862e-13,
           "note": "value_lewis (SciPy quad over the Lewis integral)"
@@ -394,32 +404,32 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.04142276359998505,
-          "first_call_seconds": 0.039241496000158804,
+          "seconds": 0.04369518080002308,
+          "first_call_seconds": 0.046143413000208966,
           "value": 4.497394597344397,
           "error": 0.010715519330278589,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.025635093000005327,
-          "first_call_seconds": 0.025643032000061794,
+          "seconds": 0.024858682800004316,
+          "first_call_seconds": 0.02619195499983107,
           "value": 4.45766878650518,
           "error": -0.029010291508938302,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 0.596671767999851,
-          "first_call_seconds": 0.6186830930000724,
+          "seconds": 0.5570660070002305,
+          "first_call_seconds": 0.6331801619999169,
           "value": 4.434276906837971,
           "error": -0.05240217117614776,
           "note": "separate 10,000 calibration paths, then 10,000 pricing paths"
         },
         {
           "library": "FinancePy",
-          "seconds": 0.07216262719998667,
-          "first_call_seconds": 0.08268658700012566,
+          "seconds": 0.075110025199956,
+          "first_call_seconds": 0.09953849600015019,
           "value": 4.471005403674716,
           "error": -0.015673674339402588,
           "note": "antithetic pairs (5,000 x 2); polynomial degree 2"
@@ -437,24 +447,24 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.0822280037999917,
-          "first_call_seconds": 0.0769436709999809,
+          "seconds": 0.07461465739997948,
+          "first_call_seconds": 0.08413230399992244,
           "value": 0.03280263689110082,
           "error": 4.7334126314448055e-05,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.001251555674999736,
-          "first_call_seconds": 0.0014468589999978576,
+          "seconds": 0.001191796189998513,
+          "first_call_seconds": 0.0013398779997260135,
           "value": 0.032802636891099655,
           "error": 4.733412631328232e-05,
           "note": ""
         },
         {
           "library": "QuantLib",
-          "seconds": 0.17209894999996322,
-          "first_call_seconds": 0.17467236900006355,
+          "seconds": 0.1766719225001907,
+          "first_call_seconds": 0.17257734599979813,
           "value": 0.03277944587442409,
           "error": 2.4143109637719817e-05,
           "note": "TreeSwaptionEngine, 500 steps plus the exercise and payment dates; tree build included"
@@ -474,24 +484,24 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.07098829699998532,
-          "first_call_seconds": 0.10765814799992768,
+          "seconds": 0.07653456959997129,
+          "first_call_seconds": 0.08409520400027759,
           "value": 0.047175259859935814,
           "error": -1.9440666326059342e-07,
           "note": "64 Gauss-Hermite points, binomial loss distribution"
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.0018233795399999052,
-          "first_call_seconds": 0.003043800000114061,
+          "seconds": 0.002103566430000683,
+          "first_call_seconds": 0.0031673220000811853,
           "value": 0.04717525985993719,
           "error": -1.9440666188669242e-07,
           "note": "64 Gauss-Hermite points, binomial loss distribution"
         },
         {
           "library": "FinancePy",
-          "seconds": 0.021120513000005302,
-          "first_call_seconds": 0.025036054000111108,
+          "seconds": 0.022991918399975476,
+          "first_call_seconds": 0.02437637100001666,
           "value": 0.04717546138661282,
           "error": 7.120013745254283e-09,
           "note": "tranche_surv_prob_recursion with 64 rectangle steps on [-6, 6]; legs assembled by this script"
@@ -510,24 +520,24 @@
       "rows": [
         {
           "library": "ofod (Python)",
-          "seconds": 0.048303925200025334,
-          "first_call_seconds": 0.044801451000012094,
+          "seconds": 0.04976736139997229,
+          "first_call_seconds": 0.04640395799970065,
           "value": 8140.510885318855,
           "error": null,
           "note": ""
         },
         {
           "library": "ofod_cpp",
-          "seconds": 0.0020080228899996655,
-          "first_call_seconds": 0.0020505309998952725,
+          "seconds": 0.0019355779249985972,
+          "first_call_seconds": 0.00201369300020815,
           "value": 8140.510885318855,
           "error": null,
           "note": "Nelder-Mead on Hull's likelihood"
         },
         {
           "library": "arch",
-          "seconds": 0.003986650639999425,
-          "first_call_seconds": 0.008023050000019794,
+          "seconds": 0.004268712180000875,
+          "first_call_seconds": 0.010067632000300364,
           "value": 8140.306411165409,
           "error": null,
           "note": "arch_model(mean='Zero', vol='GARCH'), SLSQP, backcast start variance"

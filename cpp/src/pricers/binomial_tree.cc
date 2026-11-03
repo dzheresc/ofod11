@@ -27,6 +27,19 @@ std::vector<double> Powers(double factor, std::size_t n) {
   return out;
 }
 
+// Vanilla payoff max(phi (S - K), 0): the same values as IntrinsicValue
+// (K - S is exactly -(S - K)), but inlined into the rollback loops.
+struct Payoff {
+  double phi;
+  double strike;
+  explicit Payoff(const VanillaOption& option)
+      : phi(option.option_type == instruments::OptionType::kCall ? 1.0 : -1.0),
+        strike(option.strike) {}
+  double operator()(double s) const {
+    return std::max(phi * (s - strike), 0.0);
+  }
+};
+
 }  // namespace
 
 double RiskNeutralProbability(double up, double down, double growth) {
@@ -78,13 +91,14 @@ std::optional<TreeResult> PriceTree(const VanillaOption& option, double spot,
   const double disc = std::exp(-rate * dt);
   const bool american = option.exercise == Exercise::kAmerican;
   const auto n = static_cast<std::size_t>(steps);
+  const Payoff payoff(option);
 
   // values[j] holds the node with j up moves at the current step.
   const std::vector<double> up_pow = Powers(u, n);
   const std::vector<double> down_pow = Powers(d, n);
   std::vector<double> values(n + 1);
   for (std::size_t j = 0; j <= n; ++j) {
-    values[j] = IntrinsicValue(option, spot * up_pow[j] * down_pow[n - j]);
+    values[j] = payoff(spot * up_pow[j] * down_pow[n - j]);
   }
   double value_up = 0.0;
   double value_down = 0.0;
@@ -92,8 +106,7 @@ std::optional<TreeResult> PriceTree(const VanillaOption& option, double spot,
     for (std::size_t j = 0; j <= i; ++j) {
       double v = disc * (p * values[j + 1] + (1.0 - p) * values[j]);
       if (american) {
-        v = std::max(
-            v, IntrinsicValue(option, spot * up_pow[j] * down_pow[i - j]));
+        v = std::max(v, payoff(spot * up_pow[j] * down_pow[i - j]));
       }
       values[j] = v;
     }
@@ -104,8 +117,8 @@ std::optional<TreeResult> PriceTree(const VanillaOption& option, double spot,
   }
   if (n == 1) {
     // The first-step values are the payoffs themselves.
-    value_down = IntrinsicValue(option, spot * d);
-    value_up = IntrinsicValue(option, spot * u);
+    value_down = payoff(spot * d);
+    value_up = payoff(spot * u);
   }
   const double delta = (value_up - value_down) / (spot * u - spot * d);
   return TreeResult{values[0], delta};
