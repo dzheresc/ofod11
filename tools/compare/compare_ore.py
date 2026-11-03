@@ -42,7 +42,7 @@ import tempfile
 import time
 
 import numpy as np
-import ORE as ore  # noqa: N813
+import ORE as ore  # noqa: N811
 
 import ofod
 import ofod_cpp
