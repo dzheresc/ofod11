@@ -1,8 +1,9 @@
 # Comparison with other libraries
 
 This page picks the open-source libraries to benchmark `ofod` against, and
-the functions to compare. It is a plan: no comparison harness exists yet.
-Our own timings are in [Performance](PERF.md).
+the functions to compare. Tier 1 has been run in the cloud container: the
+results are in [Comparison results](COMPARISON.md), and our own timings
+are in [Performance](PERF.md).
 
 The aim of each comparison is two numbers on the same inputs and the same
 host: the time per call, and the difference in price from a reference
@@ -121,22 +122,23 @@ itself only if a question comes up.
   [Performance](PERF.md)); QuantLib and Numba thread pools are pinned to
   one thread. Timings are best of five, as in `bench_python.py`.
 - **C++ against C++:** QuantLib cases go in a separate Google Benchmark
-  binary (`cpp/compare/`), built only when a `compare` vcpkg feature and
-  an `OFOD_COMPARE` CMake option are on, so the default build and CI do
-  not depend on QuantLib.
+  binary (`cpp/compare/`), built only when the `OFOD_BUILD_COMPARE` CMake
+  option is on (with the `compare` vcpkg feature, or Ubuntu's
+  `libquantlib0-dev`), so the default build and CI do not depend on
+  QuantLib.
 - **Python against Python:** a `tools/compare/compare_python.py` script
   times `ofod`, `ofod_cpp`, `QuantLib` (Python), FinancePy, arch and
   vollib on the same cases, with one warm-up call per case for Numba's
-  compilation. The comparison libraries go in an optional
-  `requirements-compare.txt`, never in `pyproject.toml`.
+  compilation. The comparison libraries go in
+  `tools/compare/requirements.txt`, never in `pyproject.toml`.
 - **Accuracy beside speed.** Every row records the price and its error
   against the reference column above. For Monte Carlo, the useful figure
   is standard error times the square root of time, not time alone.
 - **Licences.** FinancePy and PyFENG are GPL and ORE is modified BSD.
   The harness only imports or links them at benchmark time and does not
   copy their code into the repository, so `ofod` itself is unaffected.
-- **Results** go in `docs/perf/compare-*.json` and a new section of
-  [Performance](PERF.md), with each library's version.
+- **Results** go in `docs/perf/compare-*.json` and
+  [Comparison results](COMPARISON.md), with each library's version.
 
 ## Order of work
 
